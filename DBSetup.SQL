@@ -5,7 +5,8 @@ CREATE TABLE players (
     total_games INT DEFAULT 0,
     total_wins INT DEFAULT 0,
     total_losses INT DEFAULT 0,
-    total_moves INT DEFAULT 0
+    total_moves INT DEFAULT 0,
+    total_hits INT DEFAULT 0
 );
 
 CREATE TABLE games (

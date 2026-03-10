@@ -68,15 +68,19 @@ function getPlayer(string $playerId): void {
             return;
         }
 
+        // Calculate accuracy safely
+        $totalShots = (int)$player['total_moves'];
+        $totalHits = (int)$player['total_hits'];
+        $accuracy = $totalShots > 0 ? round($totalHits / $totalShots, 3) : 0;
+
         http_response_code(200);
         echo json_encode([
-            'playerId'    => $player['player_id'],
-            'displayName' => $player['display_name'],
-            'createdAt'   => $player['created_at'],
-            'totalGames'  => (int)$player['total_games'],
-            'totalWins'   => (int)$player['total_wins'],
-            'totalLosses' => (int)$player['total_losses'],
-            'totalMoves'  => (int)$player['total_moves']
+            'games_played' => (int)$player['total_games'],
+            'wins'         => (int)$player['total_wins'],
+            'losses'       => (int)$player['total_losses'],
+            'total_shots'  => $totalShots,
+            'total_hits'   => $totalHits,
+            'accuracy'     => $accuracy
         ]);
 
     } catch (PDOException $e) {
@@ -474,6 +478,41 @@ function testSetTurn(int $gameId): void {
         http_response_code(200);
         echo json_encode(['message' => 'Turn set successfully', 'playerId' => $playerId, 'turnIndex' => (int)$row['turn_order']]);
 
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Server error']);
+    }
+}
+
+// POST /api/reset
+function resetSystem(): void {
+    try {
+        $db = getDB();
+        $db->exec('TRUNCATE games, players, moves, game_players CASCADE');
+        
+        http_response_code(200);
+        echo json_encode(['status' => 'reset']);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+    }
+}
+
+// GET /api/games/{id}/moves
+function getGameMoves(int $gameId): void {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare(
+            'SELECT player_id, row, col, result, created_at 
+             FROM moves 
+             WHERE game_id = :gameId 
+             ORDER BY created_at ASC'
+        );
+        $stmt->execute([':gameId' => $gameId]);
+        $moves = $stmt->fetchAll();
+
+        http_response_code(200);
+        echo json_encode($moves);
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Server error']);
