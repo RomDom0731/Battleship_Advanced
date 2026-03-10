@@ -23,7 +23,7 @@ CREATE TABLE game_players (
     turn_order INT NOT NULL,
     has_placed_ships BOOLEAN DEFAULT FALSE,
     is_defeated BOOLEAN DEFAULT FALSE,
-    PRIMARY KEY (game_id, player_id)
+    PRIMARY KEY (game_id, player_id),
     CONSTRAINT max_players_reached CHECK (turn_order < 4)
 );
 
