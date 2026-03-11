@@ -17,7 +17,7 @@ CREATE TABLE games (
     max_players INT NOT NULL CHECK (max_players >= 1 AND max_players <= 4),
     current_turn_index INT DEFAULT 0,
     status VARCHAR(20) DEFAULT 'waiting',
-    winner_id INT REFERENCES players(player_id)
+    winner_id INT REFERENCES players(player_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
