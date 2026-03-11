@@ -25,7 +25,8 @@ function createPlayer(): void {
         if ($existing) {
             http_response_code(200);
             echo json_encode([
-                'playerId'    => $existing['player_id'],
+                'player_id'   => $existing['player_id'],
+                'playerId'    => $existing['player_id'], 
                 'displayName' => $existing['display_name']
             ]);
             return;
@@ -39,6 +40,7 @@ function createPlayer(): void {
 
         http_response_code(201);
         echo json_encode([
+            'player_id'   => $player['player_id'],
             'playerId'    => $player['player_id'],
             'displayName' => $player['display_name'],
             'createdAt'   => $player['created_at']
@@ -116,6 +118,7 @@ function createGame(): void {
 
         http_response_code(201);
         echo json_encode([
+            'game_id'    => $game['game_id'],
             'gameId'     => $game['game_id'],
             'gridSize'   => (int)$game['grid_size'],
             'maxPlayers' => (int)$game['max_players'],
