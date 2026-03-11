@@ -1,3 +1,5 @@
+ENV TEST_MODE=true
+
 FROM php:8.2-apache
 
 # Install PostgreSQL drivers

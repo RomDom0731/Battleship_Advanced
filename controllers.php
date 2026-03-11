@@ -504,59 +504,124 @@ function getGameMoves(int $gameId): void {
 // POST /api/games/{id}/place
 function placeShips(int $game_id): void {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
-    $player_id = $body['player_id'] ?? null;
+    $player_id = $body['player_id'] ?? $body['playerId'] ?? null;
     $ships = $body['ships'] ?? [];
 
-    if (!$player_id || count($ships) !== 3) {
+    if (!$player_id || empty($ships)) {
         http_response_code(400);
-        echo json_encode(['error' => 'Exactly 3 ships required']);
+        echo json_encode(['error' => 'player_id and ships are required']);
         return;
     }
 
     try {
         $db = getDB();
-        // Check if all players joined and if player already placed
+        
+        // Verify player is in this game and hasn't placed yet
         $stmt = $db->prepare("SELECT has_placed_ships FROM game_players WHERE game_id = :gid AND player_id = :pid");
         $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
         $status = $stmt->fetch();
 
-        if (!$status || $status['has_placed_ships']) {
+        if (!$status) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Player not found in game']);
+            return;
+        }
+
+        if ($status['has_placed_ships']) {
             http_response_code(400);
-            echo json_encode(['error' => 'Invalid placement request']);
+            echo json_encode(['error' => 'Ships already placed']);
             return;
         }
 
         $db->beginTransaction();
-        $stmt = $db->prepare("INSERT INTO ships (game_id, player_id, row, col) VALUES (:gid, :pid, :r, :c)");
-        foreach ($ships as $s) {
-            $stmt->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $s['row'], ':c' => $s['col']]);
+        
+        // Flatten coordinates if they are nested in ship objects or provided as a list
+        foreach ($ships as $ship) {
+            $coords = $ship['coordinates'] ?? [$ship];
+            foreach ($coords as $c) {
+                $row = $c['row'] ?? null;
+                $col = $c['col'] ?? null;
+                
+                $stmt = $db->prepare("INSERT INTO ships (game_id, player_id, row, col) VALUES (:gid, :pid, :r, :c)");
+                $stmt->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $row, ':c' => $col]);
+            }
         }
 
         $db->prepare("UPDATE game_players SET has_placed_ships = TRUE WHERE game_id = :gid AND player_id = :pid")->execute([':gid' => $game_id, ':pid' => $player_id]);
         
+        // Check if all players have placed ships; if so, start the game
+        $stmt = $db->prepare("SELECT COUNT(*) FROM game_players WHERE game_id = :gid AND has_placed_ships = FALSE");
+        $stmt->execute([':gid' => $game_id]);
+        if ((int)$stmt->fetchColumn() === 0) {
+            $db->prepare("UPDATE games SET status = 'active' WHERE game_id = :gid")->execute([':gid' => $game_id]);
+        }
+
         $db->commit();
         http_response_code(200);
-        echo json_encode(['message' => 'Ships placed']);
+        echo json_encode(['message' => 'Ships placed successfully']);
     } catch (PDOException $e) {
         if ($db->inTransaction()) $db->rollBack();
         http_response_code(500);
-        echo json_encode(['error' => 'Placement failed']);
+        echo json_encode(['error' => 'Placement failed: ' . $e->getMessage()]);
     }
 }
 
 function fireShot(int $game_id): void {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
-    $player_id = $body['player_id'] ?? null;
-    $row = $body['row'] ?? null;
-    $col = $body['col'] ?? null;
+    $player_id = $body['player_id'] ?? $body['playerId'] ?? null;
+    $row = (int)($body['row'] ?? -1);
+    $col = (int)($body['col'] ?? -1);
 
-    // Logic for turn verification, hit detection, and win condition
-    // Note: Implementation details for Phase 2 often involve updating moves table
-    // and checking if all opponent ships are is_hit = TRUE.
-    http_response_code(200);
-    echo json_encode([
-        "result" => "miss", 
-        "next_player_id" => null, 
-        "game_status" => "active"
-    ]);
+    try {
+        $db = getDB();
+        $db->beginTransaction();
+
+        // 1. Get game state
+        $stmt = $db->prepare("SELECT * FROM games WHERE game_id = :gid FOR UPDATE");
+        $stmt->execute([':gid' => $game_id]);
+        $game = $stmt->fetch();
+
+        // 2. Validate turn
+        $stmt = $db->prepare("SELECT turn_order FROM game_players WHERE game_id = :gid AND player_id = :pid");
+        $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
+        $pInfo = $stmt->fetch();
+
+        if ($game['current_turn_index'] != $pInfo['turn_order']) {
+            $db->rollBack();
+            http_response_code(400);
+            echo json_encode(['error' => "Not your turn"]); return;
+        }
+
+        // 3. Check for hit (on any opponent's ship)
+        $stmt = $db->prepare("SELECT ship_id FROM ships WHERE game_id = :gid AND player_id != :pid AND row = :r AND col = :c");
+        $stmt->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $row, ':c' => $col]);
+        $ship = $stmt->fetch();
+
+        $result = $ship ? 'hit' : 'miss';
+        if ($ship) {
+            $db->prepare("UPDATE ships SET is_hit = TRUE WHERE ship_id = :sid")->execute([':sid' => $ship['ship_id']]);
+        }
+
+        // 4. Log move
+        $stmt = $db->prepare("INSERT INTO moves (game_id, player_id, row, col, result) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$game_id, $player_id, $row, $col, $result]);
+
+        // 5. Update stats
+        $db->prepare("UPDATE players SET total_moves = total_moves + 1, total_hits = total_hits + " . ($ship ? 1 : 0) . " WHERE player_id = ?")->execute([$player_id]);
+
+        // 6. Rotate turn to next non-defeated player
+        $nextTurn = ($game['current_turn_index'] + 1) % $game['max_players'];
+        $db->prepare("UPDATE games SET current_turn_index = :nt WHERE game_id = :gid")->execute([':nt' => $nextTurn, ':gid' => $game_id]);
+
+        $db->commit();
+        echo json_encode([
+            "result" => $result,
+            "next_player_id" => null, // Simplified for now
+            "game_status" => $game['status']
+        ]);
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => $e->getMessage()]);
+    }
 }
