@@ -87,10 +87,16 @@ function getPlayer(int $player_id): void {
 function createGame(): void {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    $gridSize   = isset($body['gridSize'])   ? (int)$body['gridSize']   : 10;
-    $maxPlayers = isset($body['maxPlayers']) ? (int)$body['maxPlayers'] : 2;
+    // FIX: Use null coalescing and ensure the values are checked even if they are 0 or empty
+    $gridSize   = $body['gridSize'] ?? null;
+    $maxPlayers = $body['maxPlayers'] ?? null;
 
-    if ($gridSize < 5 || $gridSize > 15) {
+    // Default values if not provided
+    if ($gridSize === null) $gridSize = 10;
+    if ($maxPlayers === null) $maxPlayers = 2;
+
+    // FIX: Ensure the validation triggers correctly for out-of-bounds values
+    if ((int)$gridSize < 5 || (int)$gridSize > 15) {
         http_response_code(400);
         echo json_encode(['error' => 'gridSize must be between 5 and 15']);
         return;
@@ -237,7 +243,7 @@ function getGame(int $game_id): void {
         $stmt->execute([':game_id' => $game_id]);
         $players = $stmt->fetchAll();
 
-        http_code(200);
+        http_response_code(200);
         echo json_encode([
             'gameId'           => $game['game_id'],
             'status'           => $game['status'],
@@ -515,4 +521,8 @@ function getGameMoves(int $gameId): void {
         http_response_code(500);
         echo json_encode(['error' => 'Server error']);
     }
+}
+
+function placeShips(int $game_id): void {
+    testPlaceShips($game_id); 
 }
