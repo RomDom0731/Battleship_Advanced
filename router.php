@@ -80,7 +80,15 @@ if ($method === 'POST' && $segments[0] === 'test' && $segments[1] === 'games' &&
 
 // GET /api/test/games/{id}/board/{player_id}
 if ($method === 'GET' && $segments[0] === 'test' && $segments[1] === 'games' && isset($segments[3]) && $segments[3] === 'board') {
-    $playerId = isset($_GET['playerId']) ? (int)$_GET['playerId'] : 0;
+    // Look for playerId in the query string (?playerId=...)
+    $playerId = isset($_GET['playerId']) ? (int)$_GET['playerId'] : (isset($_GET['player_id']) ? (int)$_GET['player_id'] : 0);
+    
+    if ($playerId === 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'playerId query parameter is required']);
+        exit;
+    }
+    
     testGetBoard((int)$segments[2], $playerId); 
     exit;
 }
