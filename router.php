@@ -23,7 +23,7 @@ if ($method === 'POST' && $segments[0] === 'players' && count($segments) === 1) 
     createPlayer(); exit;
 }
 if ($method === 'GET' && $segments[0] === 'players' && count($segments) === 2) {
-    getPlayer($segments[1]); exit;
+    getPlayer((int)$segments[1]); exit;
 }
 if ($method === 'POST' && $segments[0] === 'games' && count($segments) === 1) {
     createGame(); exit;

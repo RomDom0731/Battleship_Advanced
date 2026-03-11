@@ -25,8 +25,7 @@ function createPlayer(): void {
         if ($existing) {
             http_response_code(200);
             echo json_encode([
-                'player_id'   => $existing['player_id'],
-                'playerId'    => $existing['player_id'], 
+                'player_id'   => (int)$existing['player_id'],
                 'displayName' => $existing['display_name']
             ]);
             return;
@@ -40,8 +39,7 @@ function createPlayer(): void {
 
         http_response_code(201);
         echo json_encode([
-            'player_id'   => $player['player_id'],
-            'playerId'    => $player['player_id'],
+            'player_id'   => (int)$player['player_id'],
             'displayName' => $player['display_name'],
             'createdAt'   => $player['created_at']
         ]);
@@ -53,7 +51,7 @@ function createPlayer(): void {
 }
 
 // GET /players/{playerId}
-function getPlayer(string $playerId): void {
+function getPlayer(int $playerId): void {
     try {
         $db = getDB();
         $stmt = $db->prepare('SELECT * FROM players WHERE player_id = :id');
