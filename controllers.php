@@ -311,9 +311,9 @@ function testPlaceShips(int $gameId): void {
             return;
         }
 
-        if ($game['status'] !== 'waiting') {
+        if (!in_array($game['status'], ['waiting', 'active'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'Cannot place ships: game has already started']);
+            echo json_encode(['error' => 'Cannot place ships: game is finished']);
             return;
         }
 
@@ -362,6 +362,14 @@ function testPlaceShips(int $gameId): void {
 
         $db->prepare('UPDATE game_players SET has_placed_ships = TRUE WHERE game_id = :gameId AND player_id = :playerId')
            ->execute([':gameId' => $gameId, ':playerId' => $playerId]);
+
+        // Transition game to active if all players have placed ships
+        $checkStmt = $db->prepare('SELECT COUNT(*) FROM game_players WHERE game_id = :gameId AND has_placed_ships = FALSE');
+        $checkStmt->execute([':gameId' => $gameId]);
+        if ((int)$checkStmt->fetchColumn() === 0) {
+            $db->prepare("UPDATE games SET status = 'active' WHERE game_id = :gameId")
+               ->execute([':gameId' => $gameId]);
+        }
 
         $db->commit();
         http_response_code(200);
@@ -675,13 +683,37 @@ function fireShot(int $game_id): void {
 
         $db->prepare("UPDATE players SET total_moves = total_moves + 1, total_hits = total_hits + " . ($ship ? 1 : 0) . " WHERE player_id = ?")->execute([$player_id]);
 
-        $nextTurn = ($game['current_turn_index'] + 1) % $game['max_players'];
-        $db->prepare("UPDATE games SET current_turn_index = :nt WHERE game_id = :gid")->execute([':nt' => $nextTurn, ':gid' => $game_id]);
+        // Get active (non-defeated) players ordered by turn_order
+        $stmt = $db->prepare("SELECT player_id, turn_order FROM game_players WHERE game_id = :gid AND is_defeated = FALSE ORDER BY turn_order ASC");
+        $stmt->execute([':gid' => $game_id]);
+        $activePlayers = $stmt->fetchAll();
+
+        // Find next player in rotation after current turn_index
+        $nextPlayerId = null;
+        $nextTurnIndex = $game['current_turn_index'];
+        if (!empty($activePlayers)) {
+            // Find the next active player after current
+            $currentTurn = (int)$game['current_turn_index'];
+            $turnOrders = array_column($activePlayers, 'turn_order');
+            // Find first turn_order > current, or wrap around to lowest
+            $nextTurn = null;
+            foreach ($activePlayers as $ap) {
+                if ((int)$ap['turn_order'] > $currentTurn) {
+                    $nextTurn = $ap;
+                    break;
+                }
+            }
+            if (!$nextTurn) $nextTurn = $activePlayers[0];
+            $nextTurnIndex = (int)$nextTurn['turn_order'];
+            $nextPlayerId = (int)$nextTurn['player_id'];
+        }
+
+        $db->prepare("UPDATE games SET current_turn_index = :nt WHERE game_id = :gid")->execute([':nt' => $nextTurnIndex, ':gid' => $game_id]);
 
         $db->commit();
         echo json_encode([
             "result" => $result,
-            "next_player_id" => null,
+            "next_player_id" => $nextPlayerId,
             "game_status" => $game['status']
         ]);
     } catch (Exception $e) {
