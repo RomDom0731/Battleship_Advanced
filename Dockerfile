@@ -1,6 +1,6 @@
-ENV TEST_MODE=true
-
 FROM php:8.2-apache
+
+ENV TEST_MODE=true
 
 # Install PostgreSQL drivers
 RUN apt-get update && apt-get install -y libpq-dev \
