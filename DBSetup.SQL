@@ -18,6 +18,7 @@ CREATE TABLE games (
     current_turn_index INT DEFAULT 0,
     status VARCHAR(20) DEFAULT 'waiting',
     winner_id INT REFERENCES players(player_id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- game_players: Change player_id to INT

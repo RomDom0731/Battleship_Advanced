@@ -117,7 +117,6 @@ function createGame(): void {
         http_response_code(201);
         echo json_encode([
             'game_id'    => $game['game_id'],
-            'gameId'     => $game['game_id'],
             'gridSize'   => (int)$game['grid_size'],
             'maxPlayers' => (int)$game['max_players'],
             'status'     => $game['status'],
@@ -253,11 +252,17 @@ function getGame(int $gameId): void {
 }
 
 function checkTestMode(): bool {
-    $header = $_SERVER['HTTP_X_TEST_MODE'] ?? '';
-    $password = getenv('TEST_PASSWORD') ?: 'test-secret';
-    if ($header !== $password) {
+    // Check if TEST_MODE is enabled (e.g., via environment variable)
+    if (getenv('TEST_MODE') !== 'true') {
         http_response_code(403);
-        echo json_encode(['error' => 'Forbidden: invalid or missing X-Test-Mode header']);
+        echo json_encode(['error' => 'Test mode is disabled']);
+        return false;
+    }
+
+    $header = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    if ($header !== 'clemson-test-2026') {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden: invalid or missing X-Test-Password header']);
         return false;
     }
     return true;
