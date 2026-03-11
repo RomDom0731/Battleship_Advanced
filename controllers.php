@@ -5,19 +5,15 @@ declare(strict_types=1);
 function createPlayer(): void {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    if (isset($body['playerId']) || isset($body['player_id'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Client may not supply playerId']);
-        return;
-    }
+    $playerName = $body['playerName'] ?? $body['username'] ?? null;
 
-    if (empty($body['playerName']) || trim($body['playerName']) === '') {
+    if (!$playerName || trim((string)$playerName) === '') {
         http_response_code(400);
         echo json_encode(['error' => 'playerName is required']);
         return;
     }
-
-    $displayName = trim($body['playerName']);
+    
+    $displayName = trim((string)$playerName);
 
     try {
         $db = getDB();
