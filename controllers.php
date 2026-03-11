@@ -415,19 +415,19 @@ function testGetBoard(int $game_id, int $player_id): void {
 
         http_response_code(200);
         echo json_encode([
-            'game_id'   => $game_id,
-            'player_id' => $player_id,
-            'ships'     => array_map(fn($s) => [
-                'row' => (int)$s['row'], 
-                'col' => (int)$s['col'], 
-                'isHit' => (bool)$s['is_hit']
+            'game_id'     => $game_id,
+            'player_id'   => $player_id,
+            'ships'       => array_map(fn($s) => [
+                'row'    => (int)$s['row'],
+                'col'    => (int)$s['col'],
+                'is_hit' => (bool)$s['is_hit']
             ], $ships),
-            'moves'     => array_map(fn($m) => [
-                'row' => (int)$m['row'], 
-                'col' => (int)$m['col'], 
+            'moves'       => array_map(fn($m) => [
+                'row'    => (int)$m['row'],
+                'col'    => (int)$m['col'],
                 'result' => $m['result']
             ], $moves),
-            'sunk_status' => $allShipsHit
+            'sunk'        => $allShipsHit
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -550,7 +550,6 @@ function getGameMoves(int $gameId): void {
 // POST /api/games/{id}/place
 function placeShips(int $game_id): void {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
-    // Support both cases for player ID
     $player_id = $body['playerId'] ?? $body['player_id'] ?? null;
     $ships = $body['ships'] ?? [];
 
@@ -562,73 +561,91 @@ function placeShips(int $game_id): void {
 
     try {
         $db = getDB();
-        
-        $stmt = $db->prepare("SELECT g.grid_size, gp.has_placed_ships FROM game_players gp JOIN games g ON g.game_id = gp.game_id WHERE gp.game_id = :gid AND gp.player_id = :pid");
-        $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
-        $status = $stmt->fetch();
 
-        if (!$status) {
-            http_response_code(404);
-            echo json_encode(['error' => 'Player not found in game']);
-            return;
-        }
+        // Verify game exists and is not finished
+        $stmt = $db->prepare("SELECT grid_size, status, max_players FROM games WHERE game_id = :gid");
+        $stmt->execute([':gid' => $game_id]);
+        $game = $stmt->fetch();
 
-        // Check game exists and is in waiting status
-        $gstmt = $db->prepare("SELECT status FROM games WHERE game_id = :gid");
-        $gstmt->execute([':gid' => $game_id]);
-        $gameRow = $gstmt->fetch();
-        if (!$gameRow) {
+        if (!$game) {
             http_response_code(404);
             echo json_encode(['error' => 'Game not found']);
             return;
         }
-        if ($gameRow['status'] === 'finished') {
+
+        if ($game['status'] === 'finished') {
             http_response_code(400);
             echo json_encode(['error' => 'Game is already finished']);
             return;
         }
 
-        if ($status['has_placed_ships']) {
+        // Verify player exists
+        $stmt = $db->prepare("SELECT player_id FROM players WHERE player_id = :pid");
+        $stmt->execute([':pid' => $player_id]);
+        if (!$stmt->fetch()) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Player not found']);
+            return;
+        }
+
+        // Check if player is in game_players; if not, auto-add them
+        $stmt = $db->prepare("SELECT has_placed_ships FROM game_players WHERE game_id = :gid AND player_id = :pid");
+        $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
+        $gp = $stmt->fetch();
+
+        if (!$gp) {
+            // Auto-add player to game
+            $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM game_players WHERE game_id = :gid");
+            $stmt->execute([':gid' => $game_id]);
+            $turnOrder = (int)$stmt->fetch()['cnt'];
+            $db->prepare("INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:gid, :pid, :to)")
+               ->execute([':gid' => $game_id, ':pid' => $player_id, ':to' => $turnOrder]);
+            $hasPlaced = false;
+        } else {
+            $hasPlaced = (bool)$gp['has_placed_ships'];
+        }
+
+        if ($hasPlaced) {
             http_response_code(400);
             echo json_encode(['error' => 'Ships already placed']);
             return;
         }
 
-        $gridSize = (int)$status['grid_size'];
+        $gridSize = (int)$game['grid_size'];
         $seen = [];
 
-        // Validate all coordinates first
         foreach ($ships as $ship) {
-            $row = $ship['row'] ?? null;
-            $col = $ship['col'] ?? null;
+            $row = isset($ship['row']) ? (int)$ship['row'] : null;
+            $col = isset($ship['col']) ? (int)$ship['col'] : null;
 
             if ($row === null || $col === null || $row < 0 || $row >= $gridSize || $col < 0 || $col >= $gridSize) {
                 http_response_code(400);
-                echo json_encode(['error' => "Coordinate [$row, $col] out of bounds"]);
+                echo json_encode(['error' => "Coordinate out of bounds"]);
                 return;
             }
 
             $key = "$row,$col";
             if (isset($seen[$key])) {
                 http_response_code(400);
-                echo json_encode(['error' => "Duplicate coordinate [$row, $col]"]);
+                echo json_encode(['error' => "Duplicate coordinate"]);
                 return;
             }
             $seen[$key] = true;
         }
 
         $db->beginTransaction();
-        
+
         foreach ($ships as $ship) {
             $row = (int)$ship['row'];
             $col = (int)$ship['col'];
-            
-            $stmt = $db->prepare("INSERT INTO ships (game_id, player_id, row, col) VALUES (:gid, :pid, :r, :c)");
-            $stmt->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $row, ':c' => $col]);
+            $db->prepare("INSERT INTO ships (game_id, player_id, row, col) VALUES (:gid, :pid, :r, :c)")
+               ->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $row, ':c' => $col]);
         }
 
-        $db->prepare("UPDATE game_players SET has_placed_ships = TRUE WHERE game_id = :gid AND player_id = :pid")->execute([':gid' => $game_id, ':pid' => $player_id]);
-        
+        $db->prepare("UPDATE game_players SET has_placed_ships = TRUE WHERE game_id = :gid AND player_id = :pid")
+           ->execute([':gid' => $game_id, ':pid' => $player_id]);
+
+        // Transition to active if all players have placed
         $stmt = $db->prepare("SELECT COUNT(*) FROM game_players WHERE game_id = :gid AND has_placed_ships = FALSE");
         $stmt->execute([':gid' => $game_id]);
         if ((int)$stmt->fetchColumn() === 0) {
@@ -639,7 +656,7 @@ function placeShips(int $game_id): void {
         http_response_code(200);
         echo json_encode(['message' => 'Ships placed successfully']);
     } catch (PDOException $e) {
-        if ($db->inTransaction()) $db->rollBack();
+        if (isset($db) && $db->inTransaction()) $db->rollBack();
         http_response_code(500);
         echo json_encode(['error' => 'Placement failed: ' . $e->getMessage()]);
     }
@@ -698,7 +715,8 @@ function fireShot(int $game_id): void {
             echo json_encode(['error' => "Not your turn"]); return;
         }
 
-        $stmt = $db->prepare("SELECT ship_id FROM ships WHERE game_id = :gid AND player_id != :pid AND row = :r AND col = :c");
+        // Find whose ship was hit (if any) - target is any other player's ship
+        $stmt = $db->prepare("SELECT s.ship_id, s.player_id as owner_id FROM ships s WHERE s.game_id = :gid AND s.player_id != :pid AND s.row = :r AND s.col = :c AND s.is_hit = FALSE");
         $stmt->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $row, ':c' => $col]);
         $ship = $stmt->fetch();
 
@@ -712,39 +730,82 @@ function fireShot(int $game_id): void {
 
         $db->prepare("UPDATE players SET total_moves = total_moves + 1, total_hits = total_hits + " . ($ship ? 1 : 0) . " WHERE player_id = ?")->execute([$player_id]);
 
-        // Get active (non-defeated) players ordered by turn_order
-        $stmt = $db->prepare("SELECT player_id, turn_order FROM game_players WHERE game_id = :gid AND is_defeated = FALSE ORDER BY turn_order ASC");
-        $stmt->execute([':gid' => $game_id]);
-        $activePlayers = $stmt->fetchAll();
+        // Check if the hit owner has all ships sunk (defeated)
+        $gameStatus = 'active';
+        $winnerId = null;
 
-        // Find next player in rotation after current turn_index
-        $nextPlayerId = null;
-        $nextTurnIndex = $game['current_turn_index'];
-        if (!empty($activePlayers)) {
-            // Find the next active player after current
-            $currentTurn = (int)$game['current_turn_index'];
-            $turnOrders = array_column($activePlayers, 'turn_order');
-            // Find first turn_order > current, or wrap around to lowest
-            $nextTurn = null;
-            foreach ($activePlayers as $ap) {
-                if ((int)$ap['turn_order'] > $currentTurn) {
-                    $nextTurn = $ap;
-                    break;
+        if ($ship) {
+            $ownerId = $ship['owner_id'];
+            $stmt = $db->prepare("SELECT COUNT(*) FROM ships WHERE game_id = :gid AND player_id = :oid AND is_hit = FALSE");
+            $stmt->execute([':gid' => $game_id, ':oid' => $ownerId]);
+            $remainingShips = (int)$stmt->fetchColumn();
+
+            if ($remainingShips === 0) {
+                // Owner is defeated
+                $db->prepare("UPDATE game_players SET is_defeated = TRUE WHERE game_id = :gid AND player_id = :oid")
+                   ->execute([':gid' => $game_id, ':oid' => $ownerId]);
+
+                // Update loser stats
+                $db->prepare("UPDATE players SET total_games = total_games + 1, total_losses = total_losses + 1 WHERE player_id = ?")
+                   ->execute([$ownerId]);
+
+                // Check how many active players remain
+                $stmt = $db->prepare("SELECT player_id FROM game_players WHERE game_id = :gid AND is_defeated = FALSE");
+                $stmt->execute([':gid' => $game_id]);
+                $survivors = $stmt->fetchAll();
+
+                if (count($survivors) === 1) {
+                    // We have a winner!
+                    $winnerId = (int)$survivors[0]['player_id'];
+                    $gameStatus = 'finished';
+
+                    $db->prepare("UPDATE games SET status = 'finished', winner_id = :wid WHERE game_id = :gid")
+                       ->execute([':wid' => $winnerId, ':gid' => $game_id]);
+
+                    // Update winner stats
+                    $db->prepare("UPDATE players SET total_games = total_games + 1, total_wins = total_wins + 1 WHERE player_id = ?")
+                       ->execute([$winnerId]);
                 }
             }
-            if (!$nextTurn) $nextTurn = $activePlayers[0];
-            $nextTurnIndex = (int)$nextTurn['turn_order'];
-            $nextPlayerId = (int)$nextTurn['player_id'];
         }
 
-        $db->prepare("UPDATE games SET current_turn_index = :nt WHERE game_id = :gid")->execute([':nt' => $nextTurnIndex, ':gid' => $game_id]);
+        // Find next player (only if game not finished)
+        $nextPlayerId = null;
+        $nextTurnIndex = (int)$game['current_turn_index'];
+
+        if ($gameStatus === 'active') {
+            $stmt = $db->prepare("SELECT player_id, turn_order FROM game_players WHERE game_id = :gid AND is_defeated = FALSE ORDER BY turn_order ASC");
+            $stmt->execute([':gid' => $game_id]);
+            $activePlayers = $stmt->fetchAll();
+
+            if (!empty($activePlayers)) {
+                $currentTurn = (int)$game['current_turn_index'];
+                $nextTurn = null;
+                foreach ($activePlayers as $ap) {
+                    if ((int)$ap['turn_order'] > $currentTurn) {
+                        $nextTurn = $ap;
+                        break;
+                    }
+                }
+                if (!$nextTurn) $nextTurn = $activePlayers[0];
+                $nextTurnIndex = (int)$nextTurn['turn_order'];
+                $nextPlayerId = (int)$nextTurn['player_id'];
+            }
+
+            $db->prepare("UPDATE games SET current_turn_index = :nt WHERE game_id = :gid")->execute([':nt' => $nextTurnIndex, ':gid' => $game_id]);
+        }
 
         $db->commit();
-        echo json_encode([
+
+        $response = [
             "result" => $result,
             "next_player_id" => $nextPlayerId,
-            "game_status" => $game['status']
-        ]);
+            "game_status" => $gameStatus,
+        ];
+        if ($winnerId !== null) {
+            $response['winner_id'] = $winnerId;
+        }
+        echo json_encode($response);
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         http_response_code(500);
