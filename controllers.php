@@ -271,10 +271,10 @@ function checkTestMode(): bool {
         return false;
     }
 
-    $header = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    $header = $_SERVER['HTTP_X_TEST_MODE'] ?? '';
     if ($header !== 'clemson-test-2026') {
         http_response_code(403);
-        echo json_encode(['error' => 'Forbidden: invalid or missing X-Test-Password header']);
+        echo json_encode(['error' => 'Forbidden: invalid or missing X-Test-Mode header']);
         return false;
     }
     return true;
@@ -286,19 +286,19 @@ function testPlaceShips(int $gameId): void {
 
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-    if (empty($body['playerId']) || empty($body['ships'])) {
+    // Support both playerId (spec 2) and player_id (standard)
+    $playerId = $body['player_id'] ?? $body['playerId'] ?? null;
+    $ships    = $body['ships'] ?? [];
+
+    if (!$playerId || empty($ships)) {
         http_response_code(400);
         echo json_encode(['error' => 'playerId and ships are required']);
         return;
     }
 
-    $playerId = trim($body['playerId']);
-    $ships    = $body['ships'];
-
     try {
         $db = getDB();
-
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gameId');
+        $stmt = $db->prepare('SELECT grid_size, status FROM games WHERE game_id = :gameId');
         $stmt->execute([':gameId' => $gameId]);
         $game = $stmt->fetch();
 
@@ -314,47 +314,23 @@ function testPlaceShips(int $gameId): void {
             return;
         }
 
-        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :gameId AND player_id = :playerId');
-        $stmt->execute([':gameId' => $gameId, ':playerId' => $playerId]);
-        if (!$stmt->fetch()) {
-            http_response_code(403);
-            echo json_encode(['error' => 'Player is not in this game']);
-            return;
-        }
-
         $gridSize = (int)$game['grid_size'];
-        $occupied = [];
-
         $db->beginTransaction();
 
         foreach ($ships as $ship) {
-            if (empty($ship['coordinates'])) {
-                $db->rollBack();
-                http_response_code(400);
-                echo json_encode(['error' => 'Each ship must have coordinates']);
-                return;
-            }
+            // Handle both nested array [[0,0]] and object {"row":0, "col":0} formats
+            $coords = $ship['coordinates'] ?? [[$ship['row'] ?? null, $ship['col'] ?? null]];
+            
+            foreach ($coords as $coord) {
+                $row = is_array($coord) ? $coord[0] : ($coord['row'] ?? null);
+                $col = is_array($coord) ? $coord[1] : ($coord['col'] ?? null);
 
-            foreach ($ship['coordinates'] as $coord) {
-                $row = $coord[0];
-                $col = $coord[1];
-
-                if ($row < 0 || $row >= $gridSize || $col < 0 || $col >= $gridSize) {
+                if ($row === null || $col === null || $row < 0 || $row >= $gridSize || $col < 0 || $col >= $gridSize) {
                     $db->rollBack();
                     http_response_code(400);
-                    echo json_encode(['error' => "Coordinate [$row,$col] is out of bounds"]);
+                    echo json_encode(['error' => "Invalid or out-of-bounds coordinate"]);
                     return;
                 }
-
-                $key = "$row,$col";
-                if (in_array($key, $occupied)) {
-                    $db->rollBack();
-                    http_response_code(400);
-                    echo json_encode(['error' => "Coordinate [$row,$col] overlaps with another ship"]);
-                    return;
-                }
-
-                $occupied[] = $key;
 
                 $stmt = $db->prepare(
                     'INSERT INTO ships (game_id, player_id, row, col)
@@ -365,17 +341,14 @@ function testPlaceShips(int $gameId): void {
             }
         }
 
-        $stmt = $db->prepare(
-            'UPDATE game_players SET has_placed_ships = TRUE WHERE game_id = :gameId AND player_id = :playerId'
-        );
-        $stmt->execute([':gameId' => $gameId, ':playerId' => $playerId]);
+        $db->prepare('UPDATE game_players SET has_placed_ships = TRUE WHERE game_id = :gameId AND player_id = :playerId')
+           ->execute([':gameId' => $gameId, ':playerId' => $playerId]);
 
         $db->commit();
-
         http_response_code(200);
         echo json_encode(['message' => 'Ships placed successfully']);
-
     } catch (PDOException $e) {
+        if ($db->inTransaction()) $db->rollBack();
         http_response_code(500);
         echo json_encode(['error' => 'Server error']);
     }

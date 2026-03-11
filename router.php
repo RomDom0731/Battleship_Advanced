@@ -79,8 +79,9 @@ if ($method === 'POST' && $segments[0] === 'test' && $segments[1] === 'games' &&
 }
 
 // GET /api/test/games/{id}/board/{player_id}
-if ($method === 'GET' && $segments[0] === 'test' && $segments[1] === 'games' && isset($segments[4]) && $segments[3] === 'board') {
-    testGetBoard((int)$segments[2], (int)$segments[4]); 
+if ($method === 'GET' && $segments[0] === 'test' && $segments[1] === 'games' && isset($segments[3]) && $segments[3] === 'board') {
+    $playerId = isset($_GET['playerId']) ? (int)$_GET['playerId'] : 0;
+    testGetBoard((int)$segments[2], $playerId); 
     exit;
 }
 
