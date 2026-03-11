@@ -80,12 +80,14 @@ if ($method === 'POST' && $segments[0] === 'test' && $segments[1] === 'games' &&
 
 // GET /api/test/games/{id}/board/{player_id}
 if ($method === 'GET' && $segments[0] === 'test' && $segments[1] === 'games' && isset($segments[3]) && $segments[3] === 'board') {
-    // Check both CamelCase and snake_case query params
-    $playerId = $_GET['playerId'] ?? $_GET['player_id'] ?? null;
+    // Accept player_id from path (/board/123) OR query string (?playerId=123)
+    $playerId = isset($segments[4]) && $segments[4] !== '' 
+        ? $segments[4] 
+        : ($_GET['playerId'] ?? $_GET['player_id'] ?? null);
     
     if (!$playerId) {
         http_response_code(400);
-        echo json_encode(['error' => 'playerId query parameter is required']);
+        echo json_encode(['error' => 'playerId is required (path or query param)']);
         exit;
     }
     
