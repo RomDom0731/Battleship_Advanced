@@ -80,8 +80,8 @@ if ($method === 'POST' && $segments[0] === 'test' && $segments[1] === 'games' &&
 
 // GET /api/test/games/{id}/board/{player_id}
 if ($method === 'GET' && $segments[0] === 'test' && $segments[1] === 'games' && isset($segments[4]) && $segments[3] === 'board') {
-    // Pass both gameId and playerId to the controller
-    testGetBoard((int)$segments[2], (int)$segments[4]); exit;
+    testGetBoard((int)$segments[2], (int)$segments[4]); 
+    exit;
 }
 
 http_response_code(404);

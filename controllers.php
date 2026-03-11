@@ -51,11 +51,11 @@ function createPlayer(): void {
 }
 
 // GET /players/{playerId}
-function getPlayer(int $playerId): void {
+function getPlayer(int $player_id): void {
     try {
         $db = getDB();
-        $stmt = $db->prepare('SELECT * FROM players WHERE player_id = :id');
-        $stmt->execute([':id' => $playerId]);
+        $stmt = $db->prepare('SELECT * FROM players WHERE player_id = :player_id');
+        $stmt->execute([':player_id' => $player_id]);
         $player = $stmt->fetch();
 
         if (!$player) {
@@ -64,7 +64,6 @@ function getPlayer(int $playerId): void {
             return;
         }
 
-        // Calculate accuracy safely
         $totalShots = (int)$player['total_moves'];
         $totalHits = (int)$player['total_hits'];
         $accuracy = $totalShots > 0 ? round($totalHits / $totalShots, 3) : 0;
@@ -78,7 +77,6 @@ function getPlayer(int $playerId): void {
             'total_hits'   => $totalHits,
             'accuracy'     => $accuracy
         ]);
-
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Server error']);
@@ -219,8 +217,7 @@ function joinGame(int $game_id): void {
 function getGame(int $game_id): void {
     try {
         $db = getDB();
-
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gameId');
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
 
@@ -234,13 +231,13 @@ function getGame(int $game_id): void {
             'SELECT p.player_id, p.display_name, gp.turn_order, gp.is_defeated
              FROM game_players gp
              JOIN players p ON p.player_id = gp.player_id
-             WHERE gp.game_id = :gameId
+             WHERE gp.game_id = :game_id
              ORDER BY gp.turn_order ASC'
         );
-        $stmt->execute([':gameId' => $gameId]);
+        $stmt->execute([':game_id' => $game_id]);
         $players = $stmt->fetchAll();
 
-        http_response_code(200);
+        http_code(200);
         echo json_encode([
             'gameId'           => $game['game_id'],
             'status'           => $game['status'],
@@ -254,7 +251,6 @@ function getGame(int $game_id): void {
                 'isDefeated'  => (bool)$p['is_defeated']
             ], $players)
         ]);
-
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Server error']);
@@ -380,44 +376,34 @@ function testPlaceShips(int $gameId): void {
 }
 
 // GET /test/games/{gameId}/board
-function testGetBoard(int $gameId): void {
+function testGetBoard(int $game_id, int $player_id): void {
     if (!checkTestMode()) return;
-
-    $playerId = $_GET['playerId'] ?? null;
-
-    if (!$playerId) {
-        http_response_code(400);
-        echo json_encode(['error' => 'playerId query parameter is required']);
-        return;
-    }
 
     try {
         $db = getDB();
-
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gameId');
-        $stmt->execute([':gameId' => $gameId]);
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
         if (!$stmt->fetch()) {
             http_response_code(404);
             echo json_encode(['error' => 'Game not found']);
             return;
         }
 
-        $stmt = $db->prepare('SELECT row, col, is_hit FROM ships WHERE game_id = :gameId AND player_id = :playerId');
-        $stmt->execute([':gameId' => $gameId, ':playerId' => $playerId]);
+        $stmt = $db->prepare('SELECT row, col, is_hit FROM ships WHERE game_id = :game_id AND player_id = :player_id');
+        $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         $ships = $stmt->fetchAll();
 
-        $stmt = $db->prepare('SELECT row, col, result FROM moves WHERE game_id = :gameId AND player_id != :playerId');
-        $stmt->execute([':gameId' => $gameId, ':playerId' => $playerId]);
+        $stmt = $db->prepare('SELECT row, col, result FROM moves WHERE game_id = :game_id AND player_id != :player_id');
+        $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         $moves = $stmt->fetchAll();
 
         http_response_code(200);
         echo json_encode([
-            'gameId'   => $gameId,
-            'playerId' => $playerId,
+            'game_id'   => $game_id,
+            'player_id' => $player_id,
             'ships'    => array_map(fn($s) => ['row' => (int)$s['row'], 'col' => (int)$s['col'], 'isHit' => (bool)$s['is_hit']], $ships),
             'moves'    => array_map(fn($m) => ['row' => (int)$m['row'], 'col' => (int)$m['col'], 'result' => $m['result']], $moves)
         ]);
-
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'Server error']);
