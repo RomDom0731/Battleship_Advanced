@@ -130,22 +130,13 @@ function createGame(): void {
 }
 
 // POST /games/{gameId}/join
-function joinGame(int $gameId): void {
-    $body = json_decode(file_get_contents('php://input'), true) ?? [];
-
-    if (empty($body['playerId'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'playerId is required']);
-        return;
-    }
-
-    $playerId = trim($body['playerId']);
-
+function joinGame(int $game_id): void {
     try {
         $db = getDB();
-
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gameId');
-        $stmt->execute([':gameId' => $gameId]);
+        
+        // 1. Check if game exists FIRST to return 404 for bogus game_id
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
 
         if (!$game) {
@@ -154,30 +145,44 @@ function joinGame(int $gameId): void {
             return;
         }
 
+        // 2. Validate request body
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        if (empty($body['player_id'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'player_id is required']);
+            return;
+        }
+
+        $player_id = $body['player_id'];
+
+        // 3. Check if game is still accepting players
         if ($game['status'] !== 'waiting') {
             http_response_code(400);
             echo json_encode(['error' => 'Game is no longer accepting players']);
             return;
         }
 
-        $stmt = $db->prepare('SELECT * FROM players WHERE player_id = :playerId');
-        $stmt->execute([':playerId' => $playerId]);
+        // 4. Verify player exists in the players table
+        $stmt = $db->prepare('SELECT * FROM players WHERE player_id = :player_id');
+        $stmt->execute([':player_id' => $player_id]);
         if (!$stmt->fetch()) {
             http_response_code(404);
             echo json_encode(['error' => 'Player not found']);
             return;
         }
 
-        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :gameId AND player_id = :playerId');
-        $stmt->execute([':gameId' => $gameId, ':playerId' => $playerId]);
+        // 5. Check if player is already in this game
+        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :game_id AND player_id = :player_id');
+        $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         if ($stmt->fetch()) {
             http_response_code(400);
             echo json_encode(['error' => 'Player already joined this game']);
             return;
         }
 
-        $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :gameId');
-        $stmt->execute([':gameId' => $gameId]);
+        // 6. Check if game is full
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
         $count = (int)$stmt->fetch()['count'];
 
         if ($count >= $game['max_players']) {
@@ -186,17 +191,22 @@ function joinGame(int $gameId): void {
             return;
         }
 
+        // 7. Insert player into game
         $stmt = $db->prepare(
-            'INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:gameId, :playerId, :turnOrder)'
+            'INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:game_id, :player_id, :turn_order)'
         );
-        $stmt->execute([':gameId' => $gameId, ':playerId' => $playerId, ':turnOrder' => $count]);
+        $stmt->execute([
+            ':game_id'   => $game_id, 
+            ':player_id' => $player_id, 
+            ':turn_order' => $count
+        ]);
 
         http_response_code(200);
         echo json_encode([
-            'message'   => 'Successfully joined game',
-            'gameId'    => $gameId,
-            'playerId'  => $playerId,
-            'turnOrder' => $count
+            'message'    => 'Successfully joined game',
+            'game_id'    => $game_id,
+            'player_id'  => $player_id,
+            'turn_order' => $count
         ]);
 
     } catch (PDOException $e) {
@@ -206,12 +216,12 @@ function joinGame(int $gameId): void {
 }
 
 // GET /games/{gameId}
-function getGame(int $gameId): void {
+function getGame(int $game_id): void {
     try {
         $db = getDB();
 
         $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gameId');
-        $stmt->execute([':gameId' => $gameId]);
+        $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
 
         if (!$game) {
