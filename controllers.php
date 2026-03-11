@@ -516,7 +516,7 @@ function testSetTurn(int $gameId): void {
 function resetSystem(): void {
     try {
         $db = getDB();
-        $db->exec('TRUNCATE games, players, moves, game_players CASCADE');
+        $db->exec('TRUNCATE ships, moves, game_players, games, players CASCADE');
         
         http_response_code(200);
         echo json_encode(['status' => 'reset']);
@@ -560,13 +560,6 @@ function placeShips(int $game_id): void {
         return;
     }
 
-    // Exactly 3 single-cell ships required
-    if (count($ships) !== 3) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Exactly 3 ships are required']);
-        return;
-    }
-
     try {
         $db = getDB();
         
@@ -577,6 +570,21 @@ function placeShips(int $game_id): void {
         if (!$status) {
             http_response_code(404);
             echo json_encode(['error' => 'Player not found in game']);
+            return;
+        }
+
+        // Check game exists and is in waiting status
+        $gstmt = $db->prepare("SELECT status FROM games WHERE game_id = :gid");
+        $gstmt->execute([':gid' => $game_id]);
+        $gameRow = $gstmt->fetch();
+        if (!$gameRow) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Game not found']);
+            return;
+        }
+        if ($gameRow['status'] === 'finished') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Game is already finished']);
             return;
         }
 
@@ -659,9 +667,30 @@ function fireShot(int $game_id): void {
         $stmt->execute([':gid' => $game_id]);
         $game = $stmt->fetch();
 
+        if (!$game) {
+            $db->rollBack();
+            http_response_code(404);
+            echo json_encode(['error' => 'Game not found']);
+            return;
+        }
+
+        if ($game['status'] !== 'active') {
+            $db->rollBack();
+            http_response_code(400);
+            echo json_encode(['error' => 'Game is not active']);
+            return;
+        }
+
         $stmt = $db->prepare("SELECT turn_order FROM game_players WHERE game_id = :gid AND player_id = :pid");
         $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
         $pInfo = $stmt->fetch();
+
+        if (!$pInfo) {
+            $db->rollBack();
+            http_response_code(404);
+            echo json_encode(['error' => 'Player not found in game']);
+            return;
+        }
 
         if ($game['current_turn_index'] != $pInfo['turn_order']) {
             $db->rollBack();
