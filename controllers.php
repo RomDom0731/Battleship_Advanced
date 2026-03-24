@@ -593,19 +593,18 @@ function placeShips(int $game_id): void {
         $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
         $gp = $stmt->fetch();
 
+        // Check if player is in game_players
+        $stmt = $db->prepare("SELECT has_placed_ships FROM game_players WHERE game_id = :gid AND player_id = :pid");
+        $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
+        $gp = $stmt->fetch();
+
         if (!$gp) {
-            // Auto-add player to game
-            $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM game_players WHERE game_id = :gid");
-            $stmt->execute([':gid' => $game_id]);
-            $turnOrder = (int)$stmt->fetch()['cnt'];
-            $db->prepare("INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:gid, :pid, :to)")
-               ->execute([':gid' => $game_id, ':pid' => $player_id, ':to' => $turnOrder]);
-            $hasPlaced = false;
-        } else {
-            $hasPlaced = (bool)$gp['has_placed_ships'];
+            http_response_code(404);
+            echo json_encode(['error' => 'Player has not joined this game']);
+            return;
         }
 
-        if ($hasPlaced) {
+        if ($gp['has_placed_ships']) {
             http_response_code(400);
             echo json_encode(['error' => 'Ships already placed']);
             return;
