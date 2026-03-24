@@ -403,66 +403,79 @@ def test_full_game_flow():
     Validates game completion, stat updates, and winner_id.
     """
     section("Full game completion flow (end-to-end)")
-
+ 
     reset()
-
+ 
     # Create players
     _, alice = api("post", "/api/players", {"playerName": "Alice_E2E"})
     _, bob   = api("post", "/api/players", {"playerName": "Bob_E2E"})
     alice_id = alice["player_id"]
     bob_id   = bob["player_id"]
-
+ 
     # Create game with 1 ship each (easy to finish)
     _, game = api("post", "/api/games", {"gridSize": 5, "maxPlayers": 2})
     game_id = game["game_id"]
-
+ 
     # Join
     api("post", f"/api/games/{game_id}/join", {"playerId": alice_id})
     api("post", f"/api/games/{game_id}/join", {"playerId": bob_id})
-
-    # Inject ships via test endpoint (1 cell each)
+ 
+    # Inject 2 ships each so the game requires 2 hits to finish.
+    # Alice's ships: (0,0) and (0,1)
+    # Bob's ships:   (4,4) and (4,3)
+    # Turn sequence:
+    #   Alice misses  → (3,3)
+    #   Bob   hits    → (0,0)   alice still has (0,1) so game continues
+    #   Alice hits    → (4,4)   bob  still has (4,3) so game continues
+    #   Bob   hits    → (0,1)   alice is now sunk → bob wins
+    # ...but we want Alice to win, so flip it:
+    #   Alice hits    → (4,4)   bob  still has (4,3) → continues
+    #   Bob   misses  → (3,3)
+    #   Alice hits    → (4,3)   bob fully sunk → alice wins
     api("post", f"/api/test/games/{game_id}/ships",
-        {"playerId": alice_id, "ships": [{"row": 0, "col": 0}]},
+        {"playerId": alice_id, "ships": [{"row": 0, "col": 0}, {"row": 0, "col": 1}]},
         headers=TEST_HEADER)
     api("post", f"/api/test/games/{game_id}/ships",
-        {"playerId": bob_id, "ships": [{"row": 4, "col": 4}]},
+        {"playerId": bob_id,   "ships": [{"row": 4, "col": 4}, {"row": 4, "col": 3}]},
         headers=TEST_HEADER)
-
+ 
     _, game_state = api("get", f"/api/games/{game_id}")
     check("game is active after all ships placed",
           game_state.get("status") == "active", str(game_state))
-
-    # Alice fires and misses
+ 
+    # Round 1 — Alice hits Bob's first ship (game still active, Bob has 1 left)
     _, r1 = api("post", f"/api/games/{game_id}/fire",
-                {"playerId": alice_id, "row": 3, "col": 3})
-    check("alice misses → result miss", r1.get("result") == "miss", str(r1))
-
-    # Bob sinks alice's only ship
-    _, r2 = api("post", f"/api/games/{game_id}/fire",
-                {"playerId": bob_id, "row": 0, "col": 0})
-    check("bob hits alice's ship",       r2.get("result") == "hit", str(r2))
-
-    # Alice fires the winning shot
-    _, r3 = api("post", f"/api/games/{game_id}/fire",
                 {"playerId": alice_id, "row": 4, "col": 4})
-    check("alice sinks bob's ship → hit", r3.get("result") == "hit", str(r3))
+    check("alice hits bob's first ship",  r1.get("result") == "hit",    str(r1))
+    check("game still active after r1",   r1.get("game_status") == "active", str(r1))
+ 
+    # Round 1 — Bob misses
+    _, r2 = api("post", f"/api/games/{game_id}/fire",
+                {"playerId": bob_id, "row": 3, "col": 3})
+    check("bob misses → result miss",     r2.get("result") == "miss",   str(r2))
+ 
+    # Round 2 — Alice sinks Bob's last ship → Alice wins
+    _, r3 = api("post", f"/api/games/{game_id}/fire",
+                {"playerId": alice_id, "row": 4, "col": 3})
+    check("alice sinks bob's last ship",  r3.get("result") == "hit",    str(r3))
     check("game_status is 'finished'",    r3.get("game_status") == "finished", str(r3))
-    check("winner_id is alice",           r3.get("winner_id") == alice_id, str(r3))
-
+    check("winner_id is alice",           r3.get("winner_id") == alice_id,     str(r3))
+ 
     # Cannot fire on a finished game
     _, r4 = api("post", f"/api/games/{game_id}/fire",
-                {"playerId": alice_id, "row": 0, "col": 0})
-    check("fire on finished game → 400", r4 == {} or r4.get("error") is not None, str(r4))
-
-    # Stat updates
+                {"playerId": bob_id, "row": 0, "col": 0})
+    check("fire on finished game → error", r4.get("error") is not None, str(r4))
+ 
+    # Stat updates — alice fired 2 shots (both hits), bob fired 1 (miss)
     _, alice_stats = api("get", f"/api/players/{alice_id}/stats")
     _, bob_stats   = api("get", f"/api/players/{bob_id}/stats")
-    check("alice wins = 1",              alice_stats.get("wins") == 1, str(alice_stats))
-    check("bob losses = 1",             bob_stats.get("losses") == 1, str(bob_stats))
-    check("alice total_shots = 2",      alice_stats.get("total_shots") == 2, str(alice_stats))
-    check("alice total_hits = 1",       alice_stats.get("total_hits") == 1, str(alice_stats))
-
-
+    check("alice wins = 1",               alice_stats.get("wins")        == 1, str(alice_stats))
+    check("bob losses = 1",               bob_stats.get("losses")        == 1, str(bob_stats))
+    check("alice total_shots = 2",        alice_stats.get("total_shots") == 2, str(alice_stats))
+    check("alice total_hits = 2",         alice_stats.get("total_hits")  == 2, str(alice_stats))
+    check("bob total_shots = 1",          bob_stats.get("total_shots")   == 1, str(bob_stats))
+    check("bob total_hits = 0",           bob_stats.get("total_hits")    == 0, str(bob_stats))
+# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 def test_identity_reuse():
     """
