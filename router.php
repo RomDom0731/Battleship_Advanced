@@ -95,5 +95,10 @@ if ($method === 'GET' && $segments[0] === 'test' && $segments[1] === 'games' && 
     exit;
 }
 
+// POST /api/test/games/{id}/set-turnd
+if ($method === 'POST' && $segments[0] === 'test' && $segments[1] === 'games' && isset($segments[3]) && $segments[3] === 'set-turn') {
+    testSetTurn((int)$segments[2]); exit;
+}
+
 http_response_code(404);
 echo json_encode(['error' => 'Endpoint not found']);

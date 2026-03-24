@@ -617,8 +617,8 @@ def test_duplicate_move_coordinates():
 
     status2, r2 = api("post", f"/api/games/{gid}/fire",
                       {"playerId": p1_id, "row": 4, "col": 4})
-    check("repeat coordinate doesn't crash (200 or 400)",
-          status2 in (200, 400), str(r2))
+    check("repeat coordinate doesn't crash (400)",
+          status2 == 400, str(r2))
 
 
 # ---------------------------------------------------------------------------

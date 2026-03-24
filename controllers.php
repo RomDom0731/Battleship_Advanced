@@ -714,6 +714,15 @@ function fireShot(int $game_id): void {
             echo json_encode(['error' => "Not your turn"]); return;
         }
 
+        $stmt = $db->prepare("SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c");
+        $stmt->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $row, ':c' => $col]);
+        if ($stmt->fetch()) {
+            $db->rollBack();
+            http_response_code(400);
+            echo json_encode(['error' => 'Cell already targeted']);
+            return;
+        }
+
         // Find whose ship was hit (if any) - target is any other player's ship
         $stmt = $db->prepare("SELECT s.ship_id, s.player_id as owner_id FROM ships s WHERE s.game_id = :gid AND s.player_id != :pid AND s.row = :r AND s.col = :c AND s.is_hit = FALSE");
         $stmt->execute([':gid' => $game_id, ':pid' => $player_id, ':r' => $row, ':c' => $col]);
