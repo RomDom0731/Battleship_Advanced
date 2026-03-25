@@ -292,15 +292,15 @@ function testPlaceShips(int $gameId): void {
     $playerId = $body['playerId'] ?? $body['player_id'] ?? null;
     $ships    = $body['ships'] ?? [];
 
-    if (count($ships) !== 5) {
-        http_response_code(400);
-        echo json_encode(['error' => 'You must place exactly 5 ships']);
-        return;
-    }
-
     if (!$playerId || empty($ships)) {
         http_response_code(400);
         echo json_encode(['error' => 'playerId and ships are required']);
+        return;
+    }
+
+    if (count($ships) < 3) {
+        http_response_code(400);
+        echo json_encode(['error' => 'You must place 3 or more ships']);
         return;
     }
 
@@ -559,15 +559,15 @@ function placeShips(int $game_id): void {
     $player_id = $body['playerId'] ?? $body['player_id'] ?? null;
     $ships = $body['ships'] ?? [];
 
-    if (count($ships) !== 5) {
-        http_response_code(400);
-        echo json_encode(['error' => 'You must place exactly 5 ships']);
-        return;
-    }
-
     if (!$player_id || empty($ships)) {
         http_response_code(400);
         echo json_encode(['error' => 'player_id and ships are required']);
+        return;
+    }
+
+    if (count($ships) < 3) {
+        http_response_code(400);
+        echo json_encode(['error' => 'You must place 3 or more ships']);
         return;
     }
 
