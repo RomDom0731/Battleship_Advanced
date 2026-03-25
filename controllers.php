@@ -697,6 +697,15 @@ function fireShot(int $game_id): void {
             return;
         }
 
+        $stmt = $db->prepare("SELECT player_id FROM players WHERE player_id = :pid");
+        $stmt->execute([':pid' => $player_id]);
+        if (!$stmt->fetch()) {
+            $db->rollBack();
+            http_response_code(404);
+            echo json_encode(['error' => 'Player not found']);
+            return;
+        }
+
         $stmt = $db->prepare("SELECT turn_order FROM game_players WHERE game_id = :gid AND player_id = :pid");
         $stmt->execute([':gid' => $game_id, ':pid' => $player_id]);
         $pInfo = $stmt->fetch();
@@ -712,6 +721,13 @@ function fireShot(int $game_id): void {
             $db->rollBack();
             http_response_code(400);
             echo json_encode(['error' => "Not your turn"]); return;
+        }
+
+        if ($row < 0 || $row >= (int)$game['grid_size'] || $col < 0 || $col >= (int)$game['grid_size']) {
+            $db->rollBack();
+            http_response_code(400);
+            echo json_encode(['error' => 'Shot out of bounds']);
+            return;
         }
 
         $stmt = $db->prepare("SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c");
