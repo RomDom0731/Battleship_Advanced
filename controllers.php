@@ -167,7 +167,6 @@ function joinGame(int $game_id): void {
         }
 
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
-        // Support both cases for player_id
         $player_id = $body['playerId'] ?? $body['player_id'] ?? null;
 
         if (!$player_id) {
@@ -190,19 +189,25 @@ function joinGame(int $game_id): void {
             return;
         }
 
-        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :game_id AND player_id = :player_id');
+        $db->beginTransaction();
+
+        // Re-check duplicate join inside transaction with lock
+        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :game_id AND player_id = :player_id FOR UPDATE');
         $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         if ($stmt->fetch()) {
+            $db->rollBack();
             http_response_code(409);
             echo json_encode(['error' => 'Player already joined this game']);
             return;
         }
 
-        $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id');
+        // Re-check capacity inside transaction
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id FOR UPDATE');
         $stmt->execute([':game_id' => $game_id]);
         $count = (int)$stmt->fetch()['count'];
 
         if ($count >= $game['max_players']) {
+            $db->rollBack();
             http_response_code(400);
             echo json_encode(['error' => 'Game is full']);
             return;
@@ -213,15 +218,18 @@ function joinGame(int $game_id): void {
         );
         try {
             $stmt->execute([
-                ':game_id'   => $game_id, 
-                ':player_id' => $player_id, 
+                ':game_id'    => $game_id,
+                ':player_id'  => $player_id,
                 ':turn_order' => $count
             ]);
         } catch (PDOException $e) {
+            $db->rollBack();
             http_response_code(409);
             echo json_encode(['error' => 'Player already joined this game']);
             return;
         }
+
+        $db->commit();
 
         http_response_code(200);
         echo json_encode([
@@ -232,6 +240,7 @@ function joinGame(int $game_id): void {
         ]);
 
     } catch (PDOException $e) {
+        if (isset($db) && $db->inTransaction()) $db->rollBack();
         http_response_code(500);
         echo json_encode(['error' => 'Server error']);
     }
