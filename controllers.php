@@ -153,9 +153,20 @@ function createGame(): void {
 
 // POST /games/{gameId}/join
 function joinGame(int $game_id): void {
+    // Read body before opening transaction
+    $body      = json_decode(file_get_contents('php://input'), true) ?? [];
+    $player_id = $body['playerId'] ?? $body['player_id'] ?? null;
+
+    if (!$player_id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'player_id is required']);
+        return;
+    }
+
     try {
         $db = getDB();
-        
+
+        // Verify game exists (outside transaction — fast fail)
         $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
@@ -166,22 +177,8 @@ function joinGame(int $game_id): void {
             return;
         }
 
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-        $player_id = $body['playerId'] ?? $body['player_id'] ?? null;
-
-        if (!$player_id) {
-            http_response_code(400);
-            echo json_encode(['error' => 'player_id is required']);
-            return;
-        }
-
-        if ($game['status'] !== 'waiting') {
-            http_response_code(400);
-            echo json_encode(['error' => 'Game is no longer accepting players']);
-            return;
-        }
-
-        $stmt = $db->prepare('SELECT * FROM players WHERE player_id = :player_id');
+        // Verify player exists (outside transaction — fast fail)
+        $stmt = $db->prepare('SELECT player_id FROM players WHERE player_id = :player_id');
         $stmt->execute([':player_id' => $player_id]);
         if (!$stmt->fetch()) {
             http_response_code(404);
@@ -189,10 +186,22 @@ function joinGame(int $game_id): void {
             return;
         }
 
+        // Lock the games row so concurrent joins queue up here
         $db->beginTransaction();
 
-        // Re-check duplicate join inside transaction with lock
-        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :game_id AND player_id = :player_id FOR UPDATE');
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id FOR UPDATE');
+        $stmt->execute([':game_id' => $game_id]);
+        $game = $stmt->fetch();
+
+        if ($game['status'] !== 'waiting') {
+            $db->rollBack();
+            http_response_code(400);
+            echo json_encode(['error' => 'Game is no longer accepting players']);
+            return;
+        }
+
+        // Check duplicate join inside the lock
+        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :game_id AND player_id = :player_id');
         $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         if ($stmt->fetch()) {
             $db->rollBack();
@@ -201,8 +210,8 @@ function joinGame(int $game_id): void {
             return;
         }
 
-        // Re-check capacity inside transaction
-        $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id FOR UPDATE');
+        // Check capacity inside the lock
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id');
         $stmt->execute([':game_id' => $game_id]);
         $count = (int)$stmt->fetch()['count'];
 
@@ -216,18 +225,11 @@ function joinGame(int $game_id): void {
         $stmt = $db->prepare(
             'INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:game_id, :player_id, :turn_order)'
         );
-        try {
-            $stmt->execute([
-                ':game_id'    => $game_id,
-                ':player_id'  => $player_id,
-                ':turn_order' => $count
-            ]);
-        } catch (PDOException $e) {
-            $db->rollBack();
-            http_response_code(409);
-            echo json_encode(['error' => 'Player already joined this game']);
-            return;
-        }
+        $stmt->execute([
+            ':game_id'    => $game_id,
+            ':player_id'  => $player_id,
+            ':turn_order' => $count
+        ]);
 
         $db->commit();
 
