@@ -193,7 +193,7 @@ function joinGame(int $game_id): void {
         $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :game_id AND player_id = :player_id');
         $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         if ($stmt->fetch()) {
-            http_response_code(400);
+            http_response_code(409);
             echo json_encode(['error' => 'Player already joined this game']);
             return;
         }
@@ -211,11 +211,17 @@ function joinGame(int $game_id): void {
         $stmt = $db->prepare(
             'INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:game_id, :player_id, :turn_order)'
         );
-        $stmt->execute([
-            ':game_id'   => $game_id, 
-            ':player_id' => $player_id, 
-            ':turn_order' => $count
-        ]);
+        try {
+            $stmt->execute([
+                ':game_id'   => $game_id, 
+                ':player_id' => $player_id, 
+                ':turn_order' => $count
+            ]);
+        } catch (PDOException $e) {
+            http_response_code(409);
+            echo json_encode(['error' => 'Player already joined this game']);
+            return;
+        }
 
         http_response_code(200);
         echo json_encode([
