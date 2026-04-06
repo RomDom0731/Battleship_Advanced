@@ -4,6 +4,13 @@ declare(strict_types=1);
 // POST /players
 function createPlayer(): void {
     $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $username = $body['username'] ?? null;
+
+    if (!$username || !preg_match('/^[A-Za-z0-9_]+$/', $username)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'bad_request', 'message' => 'Username must be alphanumeric']);
+        return;
+    }
 
     // Support both camelCase and snake_case for player name
     $playerName = $body['playerName'] ?? $body['player_name'] ?? $body['username'] ?? $body['display_name'] ?? null;
@@ -75,8 +82,8 @@ function getPlayer(int $player_id): void {
             'games_played' => (int)$player['total_games'],
             'wins'         => (int)$player['total_wins'],
             'losses'       => (int)$player['total_losses'],
-            'total_shots'  => $totalShots,
-            'total_hits'   => $totalHits,
+            'total_shots'  => (int)$player['total_moves'],
+            'total_hits'   => (int)$player['total_hits'],
             'accuracy'     => $accuracy
         ]);
     } catch (PDOException $e) {
@@ -101,9 +108,12 @@ function createGame(): void {
         return;
     }
 
-    if ((int)$maxPlayers < 1) {
+    if ((int)$maxPlayers < 2 || (int)$maxPlayers > 10) {
         http_response_code(400);
-        echo json_encode(['error' => 'maxPlayers must be at least 1']);
+        echo json_encode([
+            'error' => 'bad_request', 
+            'message' => 'max_players must be between 2 and 10'
+        ]);
         return;
     }
 
