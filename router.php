@@ -7,6 +7,16 @@ $method   = $_SERVER['REQUEST_METHOD'];
 $uri      = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $segments = explode('/', ltrim(rtrim($uri, '/'), '/'));
 
+if ($method === 'GET' && empty($segments[0])) {
+    getMetadata(); exit; // Implement in controllers
+}
+if ($method === 'GET' && $segments[0] === 'version') {
+    getVersion(); exit; // Implement in controllers
+}
+if ($method === 'GET' && $segments[0] === 'health') {
+    getHealth(); exit; // Implement in controllers
+}
+
 // Find where 'api' is in the segments to account for subfolders like /Battleship_Advanced/
 $apiIndex = array_search('api', $segments);
 
@@ -31,7 +41,7 @@ if ($method === 'POST' && $segments[0] === 'players' && count($segments) === 1) 
     createPlayer(); exit;
 }
 
-// GET /api/players/{id}/stats
+// GET /players/{id}/stats
 if ($method === 'GET' && $segments[0] === 'players' && isset($segments[2]) && $segments[2] === 'stats') {
     getPlayer((int)$segments[1]); exit; // Note: Ensure getPlayer() handles the stats response format
 }
