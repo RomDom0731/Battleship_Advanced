@@ -24,8 +24,9 @@ function createPlayer(): void {
         $existing = $stmt->fetch();
 
         if ($existing) {
-            http_response_code(200);
+            http_response_code(409); 
             echo json_encode([
+                'error' => 'Player already exists',
                 'player_id'   => (int)$existing['player_id'],
                 'displayName' => $existing['display_name']
             ]);
@@ -195,7 +196,7 @@ function joinGame(int $game_id): void {
 
         if ($game['status'] !== 'waiting') {
             $db->rollBack();
-            http_response_code(400);
+            http_response_code(409);
             echo json_encode(['error' => 'Game is no longer accepting players']);
             return;
         }
@@ -748,7 +749,7 @@ function fireShot(int $game_id): void {
 
         if ($game['current_turn_index'] != $pInfo['turn_order']) {
             $db->rollBack();
-            http_response_code(400);
+            http_response_code(403);
             echo json_encode(['error' => "Not your turn"]); return;
         }
 
