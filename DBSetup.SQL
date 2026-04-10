@@ -52,3 +52,10 @@ CREATE TABLE moves (
     result VARCHAR(10),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Standardize status and turn tracking
+ALTER TABLE games RENAME COLUMN current_turn_index TO current_turn_player_id;
+ALTER TABLE games ALTER COLUMN status SET DEFAULT 'waiting_setup';
+
+-- Ensure players table supports the username requirement
+ALTER TABLE players RENAME COLUMN display_name TO username;
