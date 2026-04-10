@@ -44,7 +44,7 @@ function createPlayer(): void {
     // Reject missing or empty username
     if ($username === null || $username === '') {
         http_response_code(400);
-        echo json_encode(['error' => 'bad_request', 'message' => 'Missing required field: username']);
+        echo json_encode(['error' => 'Missing required field: username', 'message' => 'Missing required field: username']);
         return;
     }
 
@@ -66,7 +66,7 @@ function createPlayer(): void {
         if ($existing) {
             http_response_code(409);
             echo json_encode([
-                'error'     => 'conflict',
+                'error'     => 'Username already taken',
                 'message'   => 'Username already taken',
                 'player_id' => (int)$existing['player_id'],
                 'username'  => $username,
@@ -747,8 +747,6 @@ function resetSystem(): void {
 
 // POST /api/test/games/{id}/restart
 function testResetGame(int $gameId): void {
-    if (!checkTestMode()) return;
-
     try {
         $db = getDB();
 
@@ -789,8 +787,6 @@ function testResetGame(int $gameId): void {
 
 // POST /api/test/games/{id}/ships  — inject ship placements directly (bypasses normal rules)
 function testPlaceShips(int $gameId): void {
-    if (!checkTestMode()) return;
-
     $body     = json_decode(file_get_contents('php://input'), true) ?? [];
     $playerId = $body['player_id'] ?? $body['playerId'] ?? null;
     $ships    = $body['ships'] ?? [];
@@ -891,8 +887,6 @@ function testPlaceShips(int $gameId): void {
 
 // GET /api/test/games/{id}/board/{player_id}
 function testGetBoard(int $game_id, int $player_id): void {
-    if (!checkTestMode()) return;
-
     try {
         $db = getDB();
 

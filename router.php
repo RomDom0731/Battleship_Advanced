@@ -67,28 +67,7 @@ if (isset($segments[0]) && $segments[0] === 'games') {
 }
 
 // --- Test / Autograder Endpoints ---
-if (isset($segments[0]) && $segments[0] === 'test' && isset($segments[1]) && $segments[1] === 'games' && isset($segments[2])) {
-    $gameId = (int)$segments[2];
-
-    if ($method === 'POST' && isset($segments[3])) {
-        if ($segments[3] === 'restart') { testResetGame($gameId);  exit; }
-        if ($segments[3] === 'ships')   { testPlaceShips($gameId); exit; }
-    }
-    if ($method === 'GET' && isset($segments[3]) && $segments[3] === 'board') {
-        // Accept player_id as path segment (/board/{player_id}) or query param
-        $playerId = $segments[4] ?? $_GET['player_id'] ?? null;
-        if (!$playerId) {
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'player_id required']);
-            exit;
-        }
-        testGetBoard($gameId, (int)$playerId); exit;
-    }
-}
-
-// Catch-all for /api/test/* with missing or wrong password → 403 before 404
-// This handles cases where the test URL contains literal placeholders like {id} or :id
-// which would otherwise fall through to the 404 handler.
+// All /api/test/* routes require the password — check it first before any dispatch.
 if (isset($segments[0]) && $segments[0] === 'test') {
     $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
     if ($password !== 'clemson-test-2026') {
@@ -96,7 +75,28 @@ if (isset($segments[0]) && $segments[0] === 'test') {
         echo json_encode(['error' => 'forbidden', 'message' => 'Invalid or missing X-Test-Password header']);
         exit;
     }
-    // Password is correct but route didn't match — 404
+
+    // Password is valid — now dispatch to the correct handler.
+    if (isset($segments[1]) && $segments[1] === 'games' && isset($segments[2])) {
+        $gameId = (int)$segments[2];
+
+        if ($method === 'POST' && isset($segments[3])) {
+            if ($segments[3] === 'restart') { testResetGame($gameId);  exit; }
+            if ($segments[3] === 'ships')   { testPlaceShips($gameId); exit; }
+        }
+        if ($method === 'GET' && isset($segments[3]) && $segments[3] === 'board') {
+            // Accept player_id as path segment (/board/{player_id}) or query param
+            $playerId = $segments[4] ?? $_GET['player_id'] ?? null;
+            if (!$playerId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'bad_request', 'message' => 'player_id required']);
+                exit;
+            }
+            testGetBoard($gameId, (int)$playerId); exit;
+        }
+    }
+
+    // Password correct but no route matched — 404
     http_response_code(404);
     echo json_encode(['error' => 'not_found', 'message' => 'Test endpoint not found']);
     exit;
