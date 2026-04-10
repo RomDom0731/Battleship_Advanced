@@ -38,12 +38,13 @@ function checkTestMode(): bool {
 // POST /api/players
 function createPlayer(): void {
     $body     = json_decode(file_get_contents('php://input'), true) ?? [];
-    $username = $body['username'] ?? null;
+    // Accept multiple field name variants used by different test teams
+    $username = $body['username'] ?? $body['playerName'] ?? $body['player_name'] ?? $body['display_name'] ?? null;
 
     // Reject missing or empty username
     if ($username === null || $username === '') {
         http_response_code(400);
-        echo json_encode(['error' => 'bad_request', 'message' => 'username is required']);
+        echo json_encode(['error' => 'bad_request', 'message' => 'Missing required field: username']);
         return;
     }
 
@@ -80,8 +81,9 @@ function createPlayer(): void {
 
         http_response_code(201);
         echo json_encode([
-            'player_id' => (int)$player['player_id'],
-            'username'  => $username,
+            'player_id'   => (int)$player['player_id'],
+            'username'    => $username,
+            'displayName' => $username,
         ]);
     } catch (PDOException $e) {
         http_response_code(500);

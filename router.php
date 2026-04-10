@@ -86,6 +86,22 @@ if (isset($segments[0]) && $segments[0] === 'test' && isset($segments[1]) && $se
     }
 }
 
+// Catch-all for /api/test/* with missing or wrong password → 403 before 404
+// This handles cases where the test URL contains literal placeholders like {id} or :id
+// which would otherwise fall through to the 404 handler.
+if (isset($segments[0]) && $segments[0] === 'test') {
+    $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    if ($password !== 'clemson-test-2026') {
+        http_response_code(403);
+        echo json_encode(['error' => 'forbidden', 'message' => 'Invalid or missing X-Test-Password header']);
+        exit;
+    }
+    // Password is correct but route didn't match — 404
+    http_response_code(404);
+    echo json_encode(['error' => 'not_found', 'message' => 'Test endpoint not found']);
+    exit;
+}
+
 // Fallback
 http_response_code(404);
 echo json_encode(['error' => 'not_found', 'message' => 'Endpoint not found']);
