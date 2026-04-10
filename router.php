@@ -7,8 +7,8 @@ $method   = $_SERVER['REQUEST_METHOD'];
 $uri      = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $segments = explode('/', ltrim(rtrim($uri, '/'), '/'));
 
-// Metadata, Version, and Health can exist at the root or /api
-if ($method === 'GET' && (empty($segments[0]) || $segments[0] === 'api' && count($segments) === 1)) {
+// Root or /api → metadata
+if ($method === 'GET' && (empty($segments[0]) || ($segments[0] === 'api' && count($segments) === 1))) {
     getMetadata(); exit;
 }
 
@@ -23,46 +23,59 @@ if ($apiIndex === false) {
 // Re-index segments relative to /api/
 $segments = array_slice($segments, $apiIndex + 1);
 
+// --- System Endpoints ---
+// GET /api/health
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'health') {
+    getHealth(); exit;
+}
+
+// POST /api/reset
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'reset') {
+    resetSystem(); exit;
+}
+
 // --- Player Endpoints ---
-if ($segments[0] === 'players') {
+if (isset($segments[0]) && $segments[0] === 'players') {
     if ($method === 'POST' && count($segments) === 1) {
         createPlayer(); exit;
     }
-    if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'stats') {
-        getPlayer((int)$segments[1]); exit; // Matches /api/players/{id}/stats
+    if ($method === 'GET' && isset($segments[1]) && is_numeric($segments[1]) && isset($segments[2]) && $segments[2] === 'stats') {
+        getPlayer((int)$segments[1]); exit;
     }
 }
 
 // --- Game Endpoints ---
-if ($segments[0] === 'games') {
+if (isset($segments[0]) && $segments[0] === 'games') {
     if ($method === 'POST' && count($segments) === 1) {
         createGame(); exit;
     }
     if (isset($segments[1]) && is_numeric($segments[1])) {
         $gameId = (int)$segments[1];
-        
+
         if ($method === 'GET' && count($segments) === 2) {
             getGame($gameId); exit;
-        }
-        if ($method === 'POST' && isset($segments[2])) {
-            if ($segments[2] === 'join') { joinGame($gameId); exit; }
-            if ($segments[2] === 'place') { placeShips($gameId); exit; }
-            if ($segments[2] === 'fire') { fireShot($gameId); exit; }
         }
         if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'moves') {
             getGameMoves($gameId); exit;
         }
+        if ($method === 'POST' && isset($segments[2])) {
+            if ($segments[2] === 'join')  { joinGame($gameId);   exit; }
+            if ($segments[2] === 'place') { placeShips($gameId); exit; }
+            if ($segments[2] === 'fire')  { fireShot($gameId);   exit; }
+        }
     }
 }
 
-// --- Test Endpoints ---
-if ($segments[0] === 'test' && $segments[1] === 'games' && isset($segments[2])) {
+// --- Test / Autograder Endpoints ---
+if (isset($segments[0]) && $segments[0] === 'test' && isset($segments[1]) && $segments[1] === 'games' && isset($segments[2])) {
     $gameId = (int)$segments[2];
+
     if ($method === 'POST' && isset($segments[3])) {
-        if ($segments[3] === 'restart') { testResetGame($gameId); exit; }
-        if ($segments[3] === 'ships') { testPlaceShips($gameId); exit; }
+        if ($segments[3] === 'restart') { testResetGame($gameId);  exit; }
+        if ($segments[3] === 'ships')   { testPlaceShips($gameId); exit; }
     }
     if ($method === 'GET' && isset($segments[3]) && $segments[3] === 'board') {
+        // Accept player_id as path segment (/board/{player_id}) or query param
         $playerId = $segments[4] ?? $_GET['player_id'] ?? null;
         if (!$playerId) {
             http_response_code(400);
@@ -73,6 +86,6 @@ if ($segments[0] === 'test' && $segments[1] === 'games' && isset($segments[2])) 
     }
 }
 
-// Fallback for unknown routes
+// Fallback
 http_response_code(404);
 echo json_encode(['error' => 'not_found', 'message' => 'Endpoint not found']);
