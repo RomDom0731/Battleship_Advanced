@@ -1239,33 +1239,30 @@ def run_get_new_game():
 
 
 def run_join_flow():
-    """Player 2 joins a fresh game — expect 200 + joined."""
+    """Each join_flow test gets its own fresh reset+players+game to avoid 409 on repeated joins."""
     section("Join flow — second player joins successfully")
-    reset()
-    _, p1r = api("post", "/api/players", {"username": "join_host"})
-    _, p2r = api("post", "/api/players", {"username": "join_guest"})
-    p1_id = p1r.get("player_id")
-    p2_id = p2r.get("player_id")
-    _, gr = api("post", "/api/games", {"creator_id": p1_id, "grid_size": 8, "max_players": 3})
-    g_id = gr.get("game_id")
+    join_flow_tests = [t for t in JSON_TESTS if t["group"] == "join_flow"]
+    for i, t in enumerate(join_flow_tests):
+        reset()
+        _, p1r = api("post", "/api/players", {"username": f"jh_{i}"})
+        _, p2r = api("post", "/api/players", {"username": f"jg_{i}"})
+        p1_id = p1r.get("player_id")
+        p2_id = p2r.get("player_id")
+        _, gr = api("post", "/api/games", {"creator_id": p1_id, "grid_size": 8, "max_players": 3})
+        g_id = gr.get("game_id")
 
-    for t in JSON_TESTS:
-        if t["group"] != "join_flow":
-            continue
         body = dict(t["body"]) if t["body"] else None
         if body and body.get("player_id") is None:
             body["player_id"] = p2_id
         path = f"/api/games/{g_id}/join"
         hdrs = build_headers(t["headers"])
         status, resp = api("post", path, body, hdrs)
-        # patch game_id into expected if needed
         exp = dict(t["expected_response_contains"])
         if "game_id" in exp:
             exp["game_id"] = g_id
         ok = (status == t["expected_status"] and matches(resp, exp))
         check(t["test_id"], t["name"], ok,
               f"status={status} (expected {t['expected_status']}), body={resp}")
-
 
 def run_double_join():
     """Player joins and then tries to join the same game again."""

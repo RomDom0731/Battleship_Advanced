@@ -68,6 +68,7 @@ function createPlayer(): void {
                 'error'     => 'conflict',
                 'message'   => 'Username already taken',
                 'player_id' => (int)$existing['player_id'],
+                'username'  => $username,
             ]);
             return;
         }
@@ -319,11 +320,11 @@ function getGame(int $game_id): void {
 
         // Players with their remaining ship count
         $stmt = $db->prepare('
-            SELECT gp.player_id, COUNT(s.ship_id) as ships_left
+            SELECT gp.player_id, gp.turn_order, COUNT(s.ship_id) as ships_left
             FROM game_players gp
             LEFT JOIN ships s ON gp.game_id = s.game_id AND gp.player_id = s.player_id AND s.is_hit = FALSE
             WHERE gp.game_id = :game_id
-            GROUP BY gp.player_id
+            GROUP BY gp.player_id, gp.turn_order
             ORDER BY gp.turn_order ASC
         ');
         $stmt->execute([':game_id' => $game_id]);
