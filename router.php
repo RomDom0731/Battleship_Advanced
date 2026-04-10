@@ -23,25 +23,13 @@ if ($apiIndex === false) {
 // Re-index segments relative to /api/
 $segments = array_slice($segments, $apiIndex + 1);
 
-// --- UNIFIED SECURITY GATE ---
-// Check password for sensitive system operations and test endpoints
-$sensitiveGroups = ['reset', 'test'];
-if (isset($segments[0]) && in_array($segments[0], $sensitiveGroups)) {
-    $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
-    if ($password !== 'clemson-test-2026') {
-        http_response_code(403);
-        echo json_encode(['error' => 'forbidden', 'message' => 'Invalid or missing X-Test-Password header']);
-        exit;
-    }
-}
-
 // --- System Endpoints ---
 // GET /api/health
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'health') {
     getHealth(); exit;
 }
 
-// POST /api/reset (Now password protected by the gate above)
+// POST /api/reset
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'reset') {
     resetSystem(); exit;
 }
@@ -79,8 +67,16 @@ if (isset($segments[0]) && $segments[0] === 'games') {
 }
 
 // --- Test / Autograder Endpoints ---
+// All /api/test/* routes require the password — check it first before any dispatch.
 if (isset($segments[0]) && $segments[0] === 'test') {
-    // Password already verified by the gate at the top of the script
+    $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    if ($password !== 'clemson-test-2026') {
+        http_response_code(403);
+        echo json_encode(['error' => 'forbidden', 'message' => 'Invalid or missing X-Test-Password header']);
+        exit;
+    }
+
+    // Password is valid — now dispatch to the correct handler.
     if (isset($segments[1]) && $segments[1] === 'games' && isset($segments[2])) {
         $gameId = (int)$segments[2];
 
@@ -89,6 +85,7 @@ if (isset($segments[0]) && $segments[0] === 'test') {
             if ($segments[3] === 'ships')   { testPlaceShips($gameId); exit; }
         }
         if ($method === 'GET' && isset($segments[3]) && $segments[3] === 'board') {
+            // Accept player_id as path segment (/board/{player_id}) or query param
             $playerId = $segments[4] ?? $_GET['player_id'] ?? null;
             if (!$playerId) {
                 http_response_code(400);
@@ -99,6 +96,7 @@ if (isset($segments[0]) && $segments[0] === 'test') {
         }
     }
 
+    // Password correct but no route matched — 404
     http_response_code(404);
     echo json_encode(['error' => 'not_found', 'message' => 'Test endpoint not found']);
     exit;
