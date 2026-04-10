@@ -1,7 +1,7 @@
--- players: Change player_id to SERIAL
+-- players: Updated to use 'username' as the canonical name per contract
 CREATE TABLE players (
     player_id SERIAL PRIMARY KEY,
-    display_name VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(255) UNIQUE NOT NULL, -- Renamed from display_name
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     total_games INT DEFAULT 0,
     total_wins INT DEFAULT 0,
@@ -10,18 +10,19 @@ CREATE TABLE players (
     total_hits INT DEFAULT 0
 );
 
--- games: Ensure winner_id is INT
+-- games: Updated current_turn_player_id and status enum values
 CREATE TABLE games (
     game_id SERIAL PRIMARY KEY,
     grid_size INT NOT NULL CHECK (grid_size >= 5 AND grid_size <= 15),
-    max_players INT NOT NULL CHECK (max_players >= 1),
-    current_turn_index INT DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'waiting',
-    winner_id INT REFERENCES players(player_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    max_players INT NOT NULL CHECK (max_players >= 2 AND max_players <= 10), -- Updated bounds
+    current_turn_player_id INT REFERENCES players(player_id) DEFAULT NULL, -- Renamed from current_turn_index
+    status VARCHAR(20) DEFAULT 'waiting_setup', -- Default changed to waiting_setup
+    winner_id INT REFERENCES players(player_id) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_status CHECK (status IN ('waiting_setup', 'playing', 'finished')) -- Enforce strict enum
 );
 
--- game_players: Change player_id to INT
+-- game_players: Link table between players and specific game instances
 CREATE TABLE game_players (
     game_id INT REFERENCES games(game_id) ON DELETE CASCADE,
     player_id INT REFERENCES players(player_id),
@@ -31,10 +32,10 @@ CREATE TABLE game_players (
     PRIMARY KEY (game_id, player_id)
 );
 
--- ships: Change player_id to INT
+-- ships: Individual ship cells; uniqueness prevents overlapping placements
 CREATE TABLE ships (
     ship_id SERIAL PRIMARY KEY,
-    game_id INT REFERENCES games(game_id),
+    game_id INT REFERENCES games(game_id) ON DELETE CASCADE,
     player_id INT REFERENCES players(player_id),
     row INT NOT NULL,
     col INT NOT NULL,
@@ -42,20 +43,13 @@ CREATE TABLE ships (
     UNIQUE(game_id, player_id, row, col)
 );
 
--- moves: Change player_id to INT
+-- moves: Log of all shots fired; used for accuracy and history endpoints
 CREATE TABLE moves (
     move_id SERIAL PRIMARY KEY,
-    game_id INT REFERENCES games(game_id),
+    game_id INT REFERENCES games(game_id) ON DELETE CASCADE,
     player_id INT REFERENCES players(player_id),
     row INT NOT NULL,
     col INT NOT NULL,
-    result VARCHAR(10),
+    result VARCHAR(10) CHECK (result IN ('hit', 'miss')), -- Enforce hit/miss
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- Standardize status and turn tracking
-ALTER TABLE games RENAME COLUMN current_turn_index TO current_turn_player_id;
-ALTER TABLE games ALTER COLUMN status SET DEFAULT 'waiting_setup';
-
--- Ensure players table supports the username requirement
-ALTER TABLE players RENAME COLUMN display_name TO username;
