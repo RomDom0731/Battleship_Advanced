@@ -11,9 +11,9 @@ declare(strict_types=1);
  */
 function translateStatus(string $status): string {
     return match($status) {
-        'waiting_setup' => 'waiting',   // ← swap these
-        'active'        => 'playing',
-        default         => $status,
+        'active'  => 'playing',
+        'waiting' => 'waiting_setup',
+        default   => $status,
     };
 }
 
@@ -169,7 +169,7 @@ function createGame(): void {
         http_response_code(201);
         echo json_encode([
             'game_id' => (int)$game['game_id'],
-            'status' => translateStatus($game['status']),,
+            'status'  => $game['status'],
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -219,6 +219,13 @@ function joinGame(int $game_id): void {
         $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id FOR UPDATE');
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
+
+        if (!$game) {
+            $db->rollBack();
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
+            return;
+        }
 
         if (!$game) {
             $db->rollBack();
@@ -407,6 +414,7 @@ function placeShips(int $game_id): void {
             $seen[$key] = true;
         }
 
+        // Ships already placed — 409 per contract
         if ($gp['has_placed_ships']) {
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'message' => 'Ships already placed for this player']);
