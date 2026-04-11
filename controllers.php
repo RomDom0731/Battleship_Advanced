@@ -180,7 +180,6 @@ function createGame(): void {
 // Contract: 200 { status: "joined" }
 //           400 { error: "bad_request", message } — game full or already started
 //           404 { error: "not_found",   message } — game or player not found
-//           409 { error: "conflict",    message } — player already in game
 function joinGame(int $game_id): void {
     $body      = json_decode(file_get_contents('php://input'), true) ?? [];
     $player_id = $body['player_id'] ?? null;
@@ -228,16 +227,15 @@ function joinGame(int $game_id): void {
             return;
         }
 
-        // Check duplicate join — 409 per contract
-        $stmt = $db->prepare('SELECT 1 FROM game_players WHERE game_id = :game_id AND player_id = :player_id');
-        $stmt->execute([':game_id' => $game_id, ':player_id' => (int)$player_id]);
-        if ($stmt->fetch()) {
-            $db->rollBack();
-            http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'message' => 'Player already in this game']);
-            return;
-        }
+        $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = ? AND player_id = ?");
+        $stmt->execute([$gameId, $playerId]);
 
+        if ($stmt->fetch()) {
+            // Already in game — treat as success, return 200
+            http_response_code(200);
+            echo json_encode(['status' => 'joined']);
+            exit;
+        }
         // Check capacity — 400 per contract ("Game is full")
         $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id');
         $stmt->execute([':game_id' => $game_id]);
