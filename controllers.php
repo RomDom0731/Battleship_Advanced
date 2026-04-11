@@ -52,9 +52,9 @@ function createPlayer(): void {
         $existing = $stmt->fetch();
 
         if ($existing) {
-         http_response_code(200);
-        echo json_encode(['player_id' => $existing['player_id']]);
-        exit;
+            http_response_code(201);
+            echo json_encode(['player_id' => (int)$existing['player_id']]);
+            exit;
         }
 
 
@@ -228,13 +228,13 @@ function joinGame(int $game_id): void {
         }
 
         $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = ? AND player_id = ?");
-        $stmt->execute([$gameId, $playerId]);
+        $stmt->execute([$game_id, $player_id]);
 
         if ($stmt->fetch()) {
-            // Already in game — treat as success, return 200
-            http_response_code(200);
-            echo json_encode(['status' => 'joined']);
-            exit;
+            $db->rollBack();
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Player already in this game']);
+            return;
         }
         // Check capacity — 400 per contract ("Game is full")
         $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id');
@@ -243,8 +243,8 @@ function joinGame(int $game_id): void {
 
         if ($count >= (int)$game['max_players']) {
             $db->rollBack();
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'Game is full']);
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Game is full']);
             return;
         }
 
@@ -489,21 +489,21 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Turn enforcement — 403
-        if ((int)$game['current_turn_player_id'] !== (int)$player_id) {
-            $db->rollBack();
-            http_response_code(403);
-            echo json_encode(['error' => 'forbidden', 'message' => 'Not your turn']);
-            return;
-        }
-
-        // Duplicate move detection — 409
+        // Duplicate move detection — 409 (checked BEFORE turn so 409 takes priority over 403)
         $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
             $db->rollBack();
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'message' => 'Cell already fired upon']);
+            return;
+        }
+
+        // Turn enforcement — 403
+        if ((int)$game['current_turn_player_id'] !== (int)$player_id) {
+            $db->rollBack();
+            http_response_code(403);
+            echo json_encode(['error' => 'forbidden', 'message' => 'Not your turn']);
             return;
         }
 
