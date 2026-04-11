@@ -54,7 +54,7 @@ function createPlayer(): void {
         if ($existing) {
             http_response_code(201);
             echo json_encode(['player_id' => (int)$existing['player_id']]);
-            exit;
+            return;
         }
 
 
@@ -84,7 +84,7 @@ function getPlayer(int $player_id): void {
 
         if (!$player) {
             http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Player does not exist']);
+            echo json_encode(['error' => 'not_found', 'message' => 'Player not found']);
             return;
         }
 
@@ -159,12 +159,6 @@ function createGame(): void {
         $stmt->execute([':gridSize' => (int)$gridSize, ':maxPlayers' => (int)$maxPlayers]);
         $game = $stmt->fetch();
 
-        // Auto-add creator to game_players with turn_order = 0
-        $stmt = $db->prepare(
-            'INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:game_id, :player_id, 0)'
-        );
-        $stmt->execute([':game_id' => $game['game_id'], ':player_id' => (int)$creatorId]);
-
         http_response_code(201);
         echo json_encode([
             'game_id' => (int)$game['game_id'],
@@ -219,24 +213,25 @@ function joinGame(int $game_id): void {
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
 
-        // Only allow joining in setup phase — 400 per contract
+        // Only allow joining in setup phase — 409 if already started
         if ($game['status'] !== 'waiting_setup') {
             $db->rollBack();
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'Game has already started']);
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Game has already started']);
             return;
         }
 
-        $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = ? AND player_id = ?");
-        $stmt->execute([$game_id, $player_id]);
-
+        // Check if player already in game — 409
+        $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = :gid AND player_id = :pid");
+        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
         if ($stmt->fetch()) {
             $db->rollBack();
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'message' => 'Player already in this game']);
             return;
         }
-        // Check capacity — 400 per contract ("Game is full")
+
+        // Check capacity — 409 if full
         $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id');
         $stmt->execute([':game_id' => $game_id]);
         $count = (int)$stmt->fetch()['count'];
@@ -489,7 +484,7 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Duplicate move detection — 409 (checked BEFORE turn so 409 takes priority over 403)
+        // Duplicate move detection — 409 checked BEFORE turn so it takes priority over 403
         $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {

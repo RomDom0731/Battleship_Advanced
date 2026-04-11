@@ -44,29 +44,8 @@ if (isset($segments[0]) && $segments[0] === 'players') {
     }
 }
 
-// --- Game Endpoints ---
-if (isset($segments[0]) && $segments[0] === 'games') {
-    if ($method === 'POST' && count($segments) === 1) {
-        createGame(); exit;
-    }
-    if (isset($segments[1]) && is_numeric($segments[1])) {
-        $gameId = (int)$segments[1];
-
-        if ($method === 'GET' && count($segments) === 2) {
-            getGame($gameId); exit;
-        }
-        if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'moves') {
-            getGameMoves($gameId); exit;
-        }
-        if ($method === 'POST' && isset($segments[2])) {
-            if ($segments[2] === 'join')  { joinGame($gameId);   exit; }
-            if ($segments[2] === 'place') { placeShips($gameId); exit; }
-            if ($segments[2] === 'fire')  { fireShot($gameId);   exit; }
-        }
-    }
-}
-
 // --- Test / Autograder Endpoints ---
+// Must be checked BEFORE game endpoints so /api/test/games/... isn't caught by the games block.
 // All /api/test/* routes require the password — check it first before any dispatch.
 if (isset($segments[0]) && $segments[0] === 'test') {
     $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
@@ -100,6 +79,28 @@ if (isset($segments[0]) && $segments[0] === 'test') {
     http_response_code(404);
     echo json_encode(['error' => 'not_found', 'message' => 'Test endpoint not found']);
     exit;
+}
+
+// --- Game Endpoints ---
+if (isset($segments[0]) && $segments[0] === 'games') {
+    if ($method === 'POST' && count($segments) === 1) {
+        createGame(); exit;
+    }
+    if (isset($segments[1]) && is_numeric($segments[1])) {
+        $gameId = (int)$segments[1];
+
+        if ($method === 'GET' && count($segments) === 2) {
+            getGame($gameId); exit;
+        }
+        if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'moves') {
+            getGameMoves($gameId); exit;
+        }
+        if ($method === 'POST' && isset($segments[2])) {
+            if ($segments[2] === 'join')  { joinGame($gameId);   exit; }
+            if ($segments[2] === 'place') { placeShips($gameId); exit; }
+            if ($segments[2] === 'fire')  { fireShot($gameId);   exit; }
+        }
+    }
 }
 
 // Fallback
