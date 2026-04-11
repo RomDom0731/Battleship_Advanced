@@ -11,9 +11,9 @@ declare(strict_types=1);
  */
 function translateStatus(string $status): string {
     return match($status) {
-        'active'  => 'playing',
-        'waiting' => 'waiting_setup',
-        default   => $status,
+        'waiting_setup' => 'waiting',   // ← swap these
+        'active'        => 'playing',
+        default         => $status,
     };
 }
 
@@ -65,6 +65,7 @@ function createPlayer(): void {
         http_response_code(201);
         echo json_encode([
             'player_id' => (int)$player['player_id'],
+            'username'  => $username,
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -168,7 +169,7 @@ function createGame(): void {
         http_response_code(201);
         echo json_encode([
             'game_id' => (int)$game['game_id'],
-            'status'  => $game['status'],
+            'status' => translateStatus($game['status']),,
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -218,6 +219,13 @@ function joinGame(int $game_id): void {
         $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id FOR UPDATE');
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
+
+        if (!$game) {
+            $db->rollBack();
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
+            return;
+        }
 
         // Check if player already in game — return 200 (idempotent, handles creator re-joining)
         $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = :gid AND player_id = :pid");
@@ -377,13 +385,6 @@ function placeShips(int $game_id): void {
             return;
         }
 
-        // Ships already placed — 409 per contract
-        if ($gp['has_placed_ships']) {
-            http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'message' => 'Ships already placed for this player']);
-            return;
-        }
-
         $gridSize = (int)$game['grid_size'];
         $seen     = [];
 
@@ -404,6 +405,12 @@ function placeShips(int $game_id): void {
                 return;
             }
             $seen[$key] = true;
+        }
+
+        if ($gp['has_placed_ships']) {
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Ships already placed for this player']);
+            return;
         }
 
         $db->beginTransaction();
