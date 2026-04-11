@@ -81,6 +81,39 @@ if (isset($segments[0]) && $segments[0] === 'test') {
     exit;
 }
 
+// --- Test / Autograder Endpoints ---
+// Must be checked BEFORE game endpoints so /api/test/games/... is never caught by the games block.
+if (isset($segments[0]) && $segments[0] === 'test') {
+    $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    if ($password !== 'clemson-test-2026') {
+        http_response_code(403);
+        echo json_encode(['error' => 'forbidden', 'message' => 'Invalid or missing X-Test-Password header']);
+        exit;
+    }
+
+    if (isset($segments[1]) && $segments[1] === 'games' && isset($segments[2])) {
+        $gameId = (int)$segments[2];
+
+        if ($method === 'POST' && isset($segments[3])) {
+            if ($segments[3] === 'restart') { testResetGame($gameId);  exit; }
+            if ($segments[3] === 'ships')   { testPlaceShips($gameId); exit; }
+        }
+        if ($method === 'GET' && isset($segments[3]) && $segments[3] === 'board') {
+            $playerId = $segments[4] ?? $_GET['player_id'] ?? null;
+            if (!$playerId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'bad_request', 'message' => 'player_id required']);
+                exit;
+            }
+            testGetBoard($gameId, (int)$playerId); exit;
+        }
+    }
+
+    http_response_code(404);
+    echo json_encode(['error' => 'not_found', 'message' => 'Test endpoint not found']);
+    exit;
+}
+
 // --- Game Endpoints ---
 if (isset($segments[0]) && $segments[0] === 'games') {
     if ($method === 'POST' && count($segments) === 1) {

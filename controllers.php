@@ -84,7 +84,7 @@ function getPlayer(int $player_id): void {
 
         if (!$player) {
             http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Player not found']);
+            echo json_encode(['error' => 'not_found', 'message' => 'Player does not exist']);
             return;
         }
 
@@ -213,14 +213,6 @@ function joinGame(int $game_id): void {
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
 
-        // Only allow joining in setup phase — 409 if already started
-        if ($game['status'] !== 'waiting_setup') {
-            $db->rollBack();
-            http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'message' => 'Game has already started']);
-            return;
-        }
-
         // Check if player already in game — 409
         $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = :gid AND player_id = :pid");
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
@@ -228,6 +220,14 @@ function joinGame(int $game_id): void {
             $db->rollBack();
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'message' => 'Player already in this game']);
+            return;
+        }
+
+        // Only allow joining in setup phase — 409 if already started
+        if ($game['status'] !== 'waiting_setup') {
+            $db->rollBack();
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Game has already started']);
             return;
         }
 
@@ -484,9 +484,9 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Duplicate move detection — 409 checked BEFORE turn so it takes priority over 403
-        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
-        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
+        // Duplicate move detection — 409 (any player already fired here)
+        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND row = :r AND col = :c');
+        $stmt->execute([':gid' => $game_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
             $db->rollBack();
             http_response_code(409);
