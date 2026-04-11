@@ -46,18 +46,17 @@ function createPlayer(): void {
     try {
         $db = getDB();
 
-        $stmt = $db->prepare('SELECT player_id FROM players WHERE username = :name');
-        $stmt->execute([':name' => $username]);
+        // Check if username already exists
+        $stmt = $db->prepare("SELECT player_id FROM players WHERE username = ?");
+        $stmt->execute([$username]);
         $existing = $stmt->fetch();
 
         if ($existing) {
-            http_response_code(409);
-            echo json_encode([
-                'error'   => 'conflict',
-                'message' => 'Username already taken',
-            ]);
-            return;
+         http_response_code(200);
+        echo json_encode(['player_id' => $existing['player_id']]);
+        exit;
         }
+
 
         $stmt = $db->prepare('INSERT INTO players (username) VALUES (:name) RETURNING player_id');
         $stmt->execute([':name' => $username]);
