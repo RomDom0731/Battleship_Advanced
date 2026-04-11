@@ -159,6 +159,12 @@ function createGame(): void {
         $stmt->execute([':gridSize' => (int)$gridSize, ':maxPlayers' => (int)$maxPlayers]);
         $game = $stmt->fetch();
 
+        // Auto-add creator to game_players with turn_order = 0
+        $stmt = $db->prepare(
+            'INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:game_id, :player_id, 0)'
+        );
+        $stmt->execute([':game_id' => $game['game_id'], ':player_id' => (int)$creatorId]);
+
         http_response_code(201);
         echo json_encode([
             'game_id' => (int)$game['game_id'],
@@ -213,13 +219,13 @@ function joinGame(int $game_id): void {
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
 
-        // Check if player already in game — 409
+        // Check if player already in game — return 200 (idempotent, handles creator re-joining)
         $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = :gid AND player_id = :pid");
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
         if ($stmt->fetch()) {
             $db->rollBack();
-            http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'message' => 'Player already in this game']);
+            http_response_code(200);
+            echo json_encode(['status' => 'joined']);
             return;
         }
 
@@ -484,7 +490,7 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Duplicate move detection — 409 (any player already fired here)
+        // Duplicate move detection — 409 (any player already fired at this cell)
         $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND row = :r AND col = :c');
         $stmt->execute([':gid' => $game_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
