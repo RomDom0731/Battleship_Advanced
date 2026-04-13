@@ -792,6 +792,52 @@ function getAllGames(): void {
     }
 }
 
+// POST /api/games/{id}/start
+function startGame(int $game_id): void {
+    try {
+        $db = getDB();
+
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        $game = $stmt->fetch();
+
+        if (!$game) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
+            return;
+        }
+
+        if ($game['status'] !== 'waiting_setup') {
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Game has already started or is finished']);
+            return;
+        }
+
+        $stmt = $db->prepare('SELECT COUNT(*) FROM game_players WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        $playerCount = (int)$stmt->fetchColumn();
+
+        if ($playerCount < 2) {
+            http_response_code(400);
+            echo json_encode(['error' => 'bad_request', 'message' => 'At least 2 players are required to start']);
+            return;
+        }
+
+        $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :game_id ORDER BY turn_order ASC LIMIT 1');
+        $stmt->execute([':game_id' => $game_id]);
+        $firstPlayer = $stmt->fetch();
+
+        $db->prepare("UPDATE games SET status = 'playing', current_turn_player_id = :pid WHERE game_id = :game_id")
+           ->execute([':pid' => $firstPlayer['player_id'], ':game_id' => $game_id]);
+
+        http_response_code(200);
+        echo json_encode(['status' => 'active']);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
 // All routes are password-gated in router.php before reaching these functions.
