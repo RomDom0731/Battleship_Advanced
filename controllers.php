@@ -741,6 +741,31 @@ function getAllPlayers(): void {
     }
 }
 
+// GET /api/players/{id}
+function getPlayerById(int $player_id): void {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('SELECT player_id, username FROM players WHERE player_id = :player_id');
+        $stmt->execute([':player_id' => $player_id]);
+        $player = $stmt->fetch();
+
+        if (!$player) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Player not found']);
+            return;
+        }
+
+        http_response_code(200);
+        echo json_encode([
+            'player_id' => (int)$player['player_id'],
+            'username'  => $player['username'],
+        ]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
 // All routes are password-gated in router.php before reaching these functions.
