@@ -40,11 +40,11 @@ if (isset($segments[0]) && $segments[0] === 'players') {
         createPlayer(); exit;
     }
     if ($method === 'GET' && count($segments) === 1) {
-            getAllPlayers(); exit;
-        }
+        getAllPlayers(); exit;
+    }
     if ($method === 'GET' && isset($segments[1]) && is_numeric($segments[1]) && count($segments) === 2) {
-            getPlayerById((int)$segments[1]); exit;
-        }
+        getPlayerById((int)$segments[1]); exit;
+    }
     if ($method === 'GET' && isset($segments[1]) && is_numeric($segments[1]) && isset($segments[2]) && $segments[2] === 'stats') {
         getPlayer((int)$segments[1]); exit;
     }
