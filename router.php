@@ -137,6 +137,9 @@ if (isset($segments[0]) && $segments[0] === 'games') {
         if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'moves') {
             getGameMoves($gameId); exit;
         }
+        if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'ships') {
+            getGameShips($gameId); exit;
+        }
         if ($method === 'POST' && isset($segments[2])) {
             if ($segments[2] === 'join')  { joinGame($gameId);   exit; }
             if ($segments[2] === 'place') { placeShips($gameId); exit; }
