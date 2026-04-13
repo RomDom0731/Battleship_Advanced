@@ -766,6 +766,32 @@ function getPlayerById(int $player_id): void {
     }
 }
 
+// GET /api/games
+function getAllGames(): void {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('
+            SELECT g.game_id, g.status, COUNT(gp.player_id) as player_count
+            FROM games g
+            LEFT JOIN game_players gp ON g.game_id = gp.game_id
+            GROUP BY g.game_id
+            ORDER BY g.game_id ASC
+        ');
+        $stmt->execute();
+        $games = array_map(fn($g) => [
+            'game_id'      => (int)$g['game_id'],
+            'status'       => $g['status'],
+            'player_count' => (int)$g['player_count'],
+        ], $stmt->fetchAll());
+
+        http_response_code(200);
+        echo json_encode($games);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
 // All routes are password-gated in router.php before reaching these functions.

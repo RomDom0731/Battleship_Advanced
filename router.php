@@ -125,6 +125,9 @@ if (isset($segments[0]) && $segments[0] === 'games') {
     if ($method === 'POST' && count($segments) === 1) {
         createGame(); exit;
     }
+    if ($method === 'GET' && count($segments) === 1) {
+        getAllGames(); exit;
+    }
     if (isset($segments[1]) && is_numeric($segments[1])) {
         $gameId = (int)$segments[1];
 
