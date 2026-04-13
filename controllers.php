@@ -722,6 +722,25 @@ function resetSystem(): void {
     }
 }
 
+// GET /api/players
+function getAllPlayers(): void {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('SELECT player_id, username FROM players ORDER BY player_id ASC');
+        $stmt->execute();
+        $players = array_map(fn($p) => [
+            'player_id' => (int)$p['player_id'],
+            'username'  => $p['username'],
+        ], $stmt->fetchAll());
+
+        http_response_code(200);
+        echo json_encode($players);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
 // All routes are password-gated in router.php before reaching these functions.
