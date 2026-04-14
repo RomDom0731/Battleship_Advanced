@@ -44,7 +44,7 @@ function createPlayer(): void {
         $stmt->execute([$username]);
         if ($stmt->fetch()) {
             http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'message' => 'Username already exists']);
+            echo json_encode(['error' => 'Username already taken', 'message' => 'Username already taken']);
             return;
         }
 
@@ -421,28 +421,28 @@ function placeShips(int $game_id): void {
             return;
         }
 
-        // Must be in setup phase — 403
-        if ($game['status'] !== 'waiting_setup') {
-            http_response_code(403);
-            echo json_encode(['error' => 'forbidden', 'message' => 'Game is not in setup phase']);
-            return;
-        }
-
         // Player must have joined — 403 if not in game
         $stmt = $db->prepare('SELECT has_placed_ships FROM game_players WHERE game_id = :gid AND player_id = :pid');
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
         $gp = $stmt->fetch();
 
         if (!$gp) {
-            http_response_code(403);
-            echo json_encode(['error' => 'forbidden', 'message' => 'Player has not joined this game']);
+            http_response_code(400);
+            echo json_encode(['error' => 'bad_request', 'message' => 'Player has not joined this game']);
             return;
         }
 
-        // Ships already placed — 409
+        // Ships already placed — 409 (checked BEFORE game status so we always return 409 even if game progressed)
         if ($gp['has_placed_ships']) {
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'message' => 'Ships already placed for this player']);
+            return;
+        }
+
+        // Must be in setup phase — 403
+        if ($game['status'] !== 'waiting_setup') {
+            http_response_code(403);
+            echo json_encode(['error' => 'forbidden', 'message' => 'Game is not in setup phase']);
             return;
         }
 
@@ -542,11 +542,17 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Game must be in playing state — 400 for finished or waiting_setup
-        if ($game['status'] !== 'playing') {
+        // Game must be in playing state — 400 for finished, 403 for not started
+        if ($game['status'] === 'finished') {
             $db->rollBack();
             http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'Game is not in playing state']);
+            echo json_encode(['error' => 'bad_request', 'message' => 'Game is already finished']);
+            return;
+        }
+        if ($game['status'] !== 'playing') {
+            $db->rollBack();
+            http_response_code(403);
+            echo json_encode(['error' => 'forbidden', 'message' => 'Game has not started yet']);
             return;
         }
 
@@ -560,8 +566,9 @@ function fireShot(int $game_id): void {
         }
 
         // Duplicate move detection BEFORE turn check — 409
-        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND row = :r AND col = :c');
-        $stmt->execute([':gid' => $game_id, ':r' => $row, ':c' => $col]);
+        // Per-player: check if this player already fired at these exact coordinates
+        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
+        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
             $db->rollBack();
             http_response_code(409);
@@ -573,7 +580,7 @@ function fireShot(int $game_id): void {
         if ((int)$game['current_turn_player_id'] !== (int)$player_id) {
             $db->rollBack();
             http_response_code(403);
-            echo json_encode(['error' => 'forbidden', 'message' => 'Not your turn']);
+            echo json_encode(['error' => 'not your turn', 'message' => 'Not your turn']);
             return;
         }
 

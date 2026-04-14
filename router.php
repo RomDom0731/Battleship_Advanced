@@ -47,7 +47,14 @@ if (isset($segments[0]) && $segments[0] === 'players') {
 // --- Test / Autograder Endpoints ---
 // Must be checked BEFORE game endpoints so /api/test/games/... isn't caught by the games block.
 if (isset($segments[0]) && $segments[0] === 'test') {
-    $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    // Check header in a case-insensitive, proxy-friendly way for Render.com
+    $password = '';
+    foreach ($_SERVER as $_hkey => $_hval) {
+        if (strtolower($_hkey) === 'http_x_test_password') {
+            $password = $_hval;
+            break;
+        }
+    }
     if ($password !== 'clemson-test-2026') {
         http_response_code(403);
         echo json_encode(['error' => 'forbidden', 'message' => 'Invalid or missing X-Test-Password header']);
