@@ -44,7 +44,6 @@ if (isset($segments[0]) && $segments[0] === 'players') {
     if ($method === 'POST' && count($segments) === 1) {
         createPlayer(); exit;
     }
-    // GET /api/players/{id}/stats
     if ($method === 'GET' && isset($segments[1]) && is_numeric($segments[1]) && isset($segments[2]) && $segments[2] === 'stats') {
         getPlayer((int)$segments[1]); exit;
     }
@@ -97,6 +96,9 @@ if (isset($segments[0]) && $segments[0] === 'games') {
     if ($method === 'POST' && count($segments) === 1) {
         createGame(); exit;
     }
+    if ($method === 'GET' && count($segments) === 1) {
+        getAllGames(); exit;
+    }
     if (isset($segments[1]) && is_numeric($segments[1])) {
         $gameId = (int)$segments[1];
 
@@ -106,10 +108,14 @@ if (isset($segments[0]) && $segments[0] === 'games') {
         if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'moves') {
             getGameMoves($gameId); exit;
         }
+        if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'ships') {
+            getGameShips($gameId); exit;
+        }
         if ($method === 'POST' && isset($segments[2])) {
             if ($segments[2] === 'join')  { joinGame($gameId);   exit; }
             if ($segments[2] === 'place') { placeShips($gameId); exit; }
             if ($segments[2] === 'fire')  { fireShot($gameId);   exit; }
+            if ($segments[2] === 'start') { startGame($gameId);  exit; }
         }
     }
 }

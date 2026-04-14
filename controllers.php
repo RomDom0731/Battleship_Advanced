@@ -811,6 +811,161 @@ function resetSystem(): void {
     }
 }
 
+// GET /api/players
+function getAllPlayers(): void {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('SELECT player_id, username FROM players ORDER BY player_id ASC');
+        $stmt->execute();
+        $players = array_map(fn($p) => [
+            'player_id' => (int)$p['player_id'],
+            'username'  => $p['username'],
+        ], $stmt->fetchAll());
+
+        http_response_code(200);
+        echo json_encode($players);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
+// GET /api/players/{id}
+function getPlayerById(int $player_id): void {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('SELECT player_id, username FROM players WHERE player_id = :player_id');
+        $stmt->execute([':player_id' => $player_id]);
+        $player = $stmt->fetch();
+
+        if (!$player) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Player not found']);
+            return;
+        }
+
+        http_response_code(200);
+        echo json_encode([
+            'player_id' => (int)$player['player_id'],
+            'username'  => $player['username'],
+        ]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
+// GET /api/games
+function getAllGames(): void {
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('
+            SELECT g.game_id, g.status, COUNT(gp.player_id) as player_count
+            FROM games g
+            LEFT JOIN game_players gp ON g.game_id = gp.game_id
+            GROUP BY g.game_id
+            ORDER BY g.game_id ASC
+        ');
+        $stmt->execute();
+        $games = array_map(fn($g) => [
+            'game_id'      => (int)$g['game_id'],
+            'status'       => $g['status'],
+            'player_count' => (int)$g['player_count'],
+        ], $stmt->fetchAll());
+
+        http_response_code(200);
+        echo json_encode($games);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
+// POST /api/games/{id}/start
+function startGame(int $game_id): void {
+    try {
+        $db = getDB();
+
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        $game = $stmt->fetch();
+
+        if (!$game) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
+            return;
+        }
+
+        if ($game['status'] !== 'waiting_setup') {
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Game has already started or is finished']);
+            return;
+        }
+
+        $stmt = $db->prepare('SELECT COUNT(*) FROM game_players WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        $playerCount = (int)$stmt->fetchColumn();
+
+        if ($playerCount < 2) {
+            http_response_code(400);
+            echo json_encode(['error' => 'bad_request', 'message' => 'At least 2 players are required to start']);
+            return;
+        }
+
+        $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :game_id ORDER BY turn_order ASC LIMIT 1');
+        $stmt->execute([':game_id' => $game_id]);
+        $firstPlayer = $stmt->fetch();
+
+        $db->prepare("UPDATE games SET status = 'playing', current_turn_player_id = :pid WHERE game_id = :game_id")
+           ->execute([':pid' => $firstPlayer['player_id'], ':game_id' => $game_id]);
+
+        http_response_code(200);
+        echo json_encode(['status' => 'active']);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
+// GET /api/games/{id}/ships
+function getGameShips(int $game_id): void {
+    $player_id = $_GET['player_id'] ?? null;
+
+    if (!$player_id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'bad_request', 'message' => 'player_id query parameter is required']);
+        return;
+    }
+
+    try {
+        $db = getDB();
+
+        $stmt = $db->prepare('SELECT 1 FROM games WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        if (!$stmt->fetch()) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
+            return;
+        }
+
+        $stmt = $db->prepare(
+            'SELECT row, col, is_hit FROM ships WHERE game_id = :game_id AND player_id = :player_id'
+        );
+        $stmt->execute([':game_id' => $game_id, ':player_id' => (int)$player_id]);
+        $ships = $stmt->fetchAll();
+
+        http_response_code(200);
+        echo json_encode(array_map(fn($s) => [
+            'row'  => (int)$s['row'],
+            'col'  => (int)$s['col'],
+            'sunk' => (bool)$s['is_hit'],
+        ], $ships));
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
 // All routes are password-gated in router.php before reaching these functions.
