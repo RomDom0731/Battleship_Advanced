@@ -24,23 +24,18 @@ if ($apiIndex === false) {
 $segments = array_slice($segments, $apiIndex + 1);
 
 // --- System Endpoints ---
-// GET /api/health
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'health') {
     getHealth(); exit;
 }
-
-// POST /api/reset
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'reset') {
     resetSystem(); exit;
 }
 
 // --- Player Endpoints ---
 if (isset($segments[0]) && $segments[0] === 'players') {
-    // GET /api/players — list all players
     if ($method === 'GET' && count($segments) === 1) {
         getPlayers(); exit;
     }
-    // POST /api/players — create player
     if ($method === 'POST' && count($segments) === 1) {
         createPlayer(); exit;
     }
@@ -51,7 +46,6 @@ if (isset($segments[0]) && $segments[0] === 'players') {
 
 // --- Test / Autograder Endpoints ---
 // Must be checked BEFORE game endpoints so /api/test/games/... isn't caught by the games block.
-// All /api/test/* routes require the password — check it first before any dispatch.
 if (isset($segments[0]) && $segments[0] === 'test') {
     $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
     if ($password !== 'clemson-test-2026') {
@@ -60,7 +54,6 @@ if (isset($segments[0]) && $segments[0] === 'test') {
         exit;
     }
 
-    // Password is valid — now dispatch to the correct handler.
     if (isset($segments[1]) && $segments[1] === 'games' && isset($segments[2])) {
         $gameId = (int)$segments[2];
 
@@ -69,7 +62,6 @@ if (isset($segments[0]) && $segments[0] === 'test') {
             if ($segments[3] === 'ships')   { testPlaceShips($gameId); exit; }
         }
         if ($method === 'GET' && isset($segments[3]) && $segments[3] === 'board') {
-            // Accept player_id as path segment (/board/{player_id}) or query param
             $playerId = $segments[4] ?? $_GET['player_id'] ?? null;
             if (!$playerId) {
                 http_response_code(400);
@@ -80,7 +72,6 @@ if (isset($segments[0]) && $segments[0] === 'test') {
         }
     }
 
-    // Password correct but no route matched — 404
     http_response_code(404);
     echo json_encode(['error' => 'not_found', 'message' => 'Test endpoint not found']);
     exit;
@@ -88,16 +79,11 @@ if (isset($segments[0]) && $segments[0] === 'test') {
 
 // --- Game Endpoints ---
 if (isset($segments[0]) && $segments[0] === 'games') {
-    // GET /api/games — list all games
     if ($method === 'GET' && count($segments) === 1) {
         getGames(); exit;
     }
-    // POST /api/games — create game
     if ($method === 'POST' && count($segments) === 1) {
         createGame(); exit;
-    }
-    if ($method === 'GET' && count($segments) === 1) {
-        getAllGames(); exit;
     }
     if (isset($segments[1]) && is_numeric($segments[1])) {
         $gameId = (int)$segments[1];
@@ -108,14 +94,10 @@ if (isset($segments[0]) && $segments[0] === 'games') {
         if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'moves') {
             getGameMoves($gameId); exit;
         }
-        if ($method === 'GET' && isset($segments[2]) && $segments[2] === 'ships') {
-            getGameShips($gameId); exit;
-        }
         if ($method === 'POST' && isset($segments[2])) {
             if ($segments[2] === 'join')  { joinGame($gameId);   exit; }
             if ($segments[2] === 'place') { placeShips($gameId); exit; }
             if ($segments[2] === 'fire')  { fireShot($gameId);   exit; }
-            if ($segments[2] === 'start') { startGame($gameId);  exit; }
         }
     }
 }

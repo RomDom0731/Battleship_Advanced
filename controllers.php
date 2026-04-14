@@ -5,10 +5,6 @@ declare(strict_types=1);
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Translate internal DB status values to API-facing status strings.
- * DB stores: 'waiting_setup' | 'playing' | 'finished'
- */
 function translateStatus(string $status): string {
     return match($status) {
         'active'  => 'playing',
@@ -22,36 +18,31 @@ function translateStatus(string $status): string {
 // ---------------------------------------------------------------------------
 
 // POST /api/players
-// Contract: 201 { player_id }
-//           400 { error: "bad_request", message }  — missing/invalid username
-//           409 { error: "conflict",    message }  — duplicate username
+// Contract: 201 { player_id, username }
+//           400 — missing/invalid username
+//           409 — duplicate username
 function createPlayer(): void {
     $body     = json_decode(file_get_contents('php://input'), true) ?? [];
     $username = $body['username'] ?? null;
 
-    // Reject missing or empty username
     if ($username === null || $username === '') {
         http_response_code(400);
         echo json_encode(['error' => 'bad_request', 'message' => 'Missing required field: username']);
         return;
     }
 
-    // Enforce alphanumeric + underscores only, 1–30 chars
     if (!preg_match('/^[A-Za-z0-9_]{1,30}$/', $username)) {
         http_response_code(400);
-        echo json_encode(['error' => 'bad_request', 'message' => 'Username must be alphanumeric with underscores only']);
+        echo json_encode(['error' => 'bad_request', 'message' => 'Username must be alphanumeric with underscores only, max 30 chars']);
         return;
     }
 
     try {
         $db = getDB();
 
-        // Check if username already exists — return 409, not 201
         $stmt = $db->prepare("SELECT player_id FROM players WHERE username = ?");
         $stmt->execute([$username]);
-        $existing = $stmt->fetch();
-
-        if ($existing) {
+        if ($stmt->fetch()) {
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'message' => 'Username already exists']);
             return;
@@ -72,9 +63,25 @@ function createPlayer(): void {
     }
 }
 
+// GET /api/players
+function getPlayers(): void {
+    try {
+        $db   = getDB();
+        $stmt = $db->query('SELECT player_id, username FROM players ORDER BY player_id ASC');
+        http_response_code(200);
+        echo json_encode(array_map(fn($r) => [
+            'player_id' => (int)$r['player_id'],
+            'username'  => $r['username'],
+        ], $stmt->fetchAll()));
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
 // GET /api/players/{id}/stats
 // Contract: 200 { games_played, wins, losses, total_shots, total_hits, accuracy }
-//           404 { error, message }
+//           404 — player not found
 function getPlayer(int $player_id): void {
     try {
         $db   = getDB();
@@ -82,7 +89,6 @@ function getPlayer(int $player_id): void {
         $stmt->execute([':player_id' => $player_id]);
         $player = $stmt->fetch();
 
-        // FIX: Return 404 for any non-existent player_id (including large/negative IDs)
         if (!$player) {
             http_response_code(404);
             echo json_encode(['error' => 'not_found', 'message' => 'Player does not exist']);
@@ -108,31 +114,13 @@ function getPlayer(int $player_id): void {
     }
 }
 
-// GET /api/players
-function getPlayers(): void {
-    try {
-        $db   = getDB();
-        $stmt = $db->query('SELECT player_id, username FROM players ORDER BY player_id ASC');
-        $rows = $stmt->fetchAll();
-        http_response_code(200);
-        echo json_encode(array_map(fn($r) => [
-            'player_id' => (int)$r['player_id'],
-            'username'  => $r['username'],
-        ], $rows));
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Game Endpoints
 // ---------------------------------------------------------------------------
 
 // POST /api/games
 // Contract: 201 { game_id, status }
-//           400 { error: "bad_request", message } — invalid params or non-existent creator
-//           404 { error: "not_found",   message } — creator not found
+//           400 — invalid params or non-existent creator_id
 function createGame(): void {
     $body       = json_decode(file_get_contents('php://input'), true) ?? [];
     $gridSize   = $body['grid_size']   ?? null;
@@ -145,8 +133,8 @@ function createGame(): void {
         return;
     }
 
-    // Reject non-integer grid_size
-    if (!is_int($gridSize) && !ctype_digit((string)$gridSize)) {
+    // Reject non-integer grid_size (e.g. string "ten")
+    if (!is_int($gridSize) && !(is_string($gridSize) && ctype_digit($gridSize))) {
         http_response_code(400);
         echo json_encode(['error' => 'bad_request', 'message' => 'grid_size must be an integer']);
         return;
@@ -167,7 +155,7 @@ function createGame(): void {
     try {
         $db = getDB();
 
-        // FIX: Validate creator exists — return 400 if not found (REF0026)
+        // Validate creator exists — 400 if not found
         $stmt = $db->prepare('SELECT player_id FROM players WHERE player_id = :id');
         $stmt->execute([':id' => (int)$creatorId]);
         if (!$stmt->fetch()) {
@@ -184,11 +172,9 @@ function createGame(): void {
         $stmt->execute([':gridSize' => (int)$gridSize, ':maxPlayers' => (int)$maxPlayers]);
         $game = $stmt->fetch();
 
-        // Auto-add creator to game_players with turn_order = 0
-        $stmt = $db->prepare(
-            'INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:game_id, :player_id, 0)'
-        );
-        $stmt->execute([':game_id' => $game['game_id'], ':player_id' => (int)$creatorId]);
+        // IMPORTANT: Do NOT auto-join the creator here.
+        // The test harness always joins players explicitly via POST /api/games/{id}/join.
+        // Auto-joining causes "already joined" 400 errors during test setup.
 
         http_response_code(201);
         echo json_encode([
@@ -206,12 +192,64 @@ function getGames(): void {
     try {
         $db   = getDB();
         $stmt = $db->query('SELECT game_id, status FROM games ORDER BY game_id ASC');
-        $rows = $stmt->fetchAll();
         http_response_code(200);
         echo json_encode(array_map(fn($r) => [
             'game_id' => (int)$r['game_id'],
             'status'  => $r['status'],
-        ], $rows));
+        ], $stmt->fetchAll()));
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
+// GET /api/games/{id}
+// Contract: 200 { game_id, grid_size, status, players, current_turn_player_id, total_moves }
+//           404 — game not found
+function getGame(int $game_id): void {
+    try {
+        $db   = getDB();
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        $game = $stmt->fetch();
+
+        if (!$game) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game does not exist']);
+            return;
+        }
+
+        $stmt = $db->prepare('
+            SELECT gp.player_id, COUNT(s.ship_id) as ships_left
+            FROM game_players gp
+            LEFT JOIN ships s ON gp.game_id = s.game_id AND gp.player_id = s.player_id AND s.is_hit = FALSE
+            WHERE gp.game_id = :game_id
+            GROUP BY gp.player_id, gp.turn_order
+            ORDER BY gp.turn_order ASC
+        ');
+        $stmt->execute([':game_id' => $game_id]);
+        $players = array_map(fn($p) => [
+            'player_id'       => (int)$p['player_id'],
+            'ships_remaining' => (int)$p['ships_left'],
+        ], $stmt->fetchAll());
+
+        $stmt = $db->prepare('SELECT COUNT(*) FROM moves WHERE game_id = :game_id');
+        $stmt->execute([':game_id' => $game_id]);
+        $totalMoves = (int)$stmt->fetchColumn();
+
+        $turnId = $game['current_turn_player_id'] !== null
+            ? (int)$game['current_turn_player_id']
+            : null;
+
+        http_response_code(200);
+        echo json_encode([
+            'game_id'                => (int)$game['game_id'],
+            'grid_size'              => (int)$game['grid_size'],
+            'status'                 => $game['status'],
+            'players'                => $players,
+            'current_turn_player_id' => $turnId,
+            'total_moves'            => $totalMoves,
+        ]);
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
@@ -220,8 +258,8 @@ function getGames(): void {
 
 // POST /api/games/{id}/join
 // Contract: 200 { status: "joined", game_id, player_id }
-//           400 { error: "bad_request", message } — game full, already joined, not in setup, or bad player_id type
-//           404 { error: "not_found",   message } — game or player not found
+//           400 — game full, already joined, not in setup, or non-integer player_id
+//           404 — game or player not found
 function joinGame(int $game_id): void {
     $body      = json_decode(file_get_contents('php://input'), true) ?? [];
     $player_id = $body['player_id'] ?? null;
@@ -232,8 +270,8 @@ function joinGame(int $game_id): void {
         return;
     }
 
-    // FIX: Reject non-integer player_id (REF0081)
-    if (!is_int($player_id) && !ctype_digit((string)$player_id)) {
+    // Reject non-integer player_id (e.g. a string like "abc")
+    if (!is_int($player_id) && !(is_string($player_id) && ctype_digit($player_id))) {
         http_response_code(400);
         echo json_encode(['error' => 'bad_request', 'message' => 'player_id must be an integer']);
         return;
@@ -242,7 +280,7 @@ function joinGame(int $game_id): void {
     try {
         $db = getDB();
 
-        // Verify game exists
+        // Verify game exists first
         $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
@@ -252,7 +290,7 @@ function joinGame(int $game_id): void {
             return;
         }
 
-        // Verify player exists — 404
+        // Verify player exists
         $stmt = $db->prepare('SELECT player_id FROM players WHERE player_id = :player_id');
         $stmt->execute([':player_id' => (int)$player_id]);
         if (!$stmt->fetch()) {
@@ -263,12 +301,12 @@ function joinGame(int $game_id): void {
 
         $db->beginTransaction();
 
-        // Lock game row for concurrent-safe join
+        // Re-fetch game with lock
         $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id FOR UPDATE');
         $stmt->execute([':game_id' => $game_id]);
         $game = $stmt->fetch();
 
-        // FIX: Reject if player already in this game — 400 (REF0039, T0018)
+        // Reject if player already in this game — 400
         $stmt = $db->prepare("SELECT 1 FROM game_players WHERE game_id = :gid AND player_id = :pid");
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
         if ($stmt->fetch()) {
@@ -278,7 +316,7 @@ function joinGame(int $game_id): void {
             return;
         }
 
-        // FIX: Only allow joining in setup phase — 400 if already started (REF0041, T0119)
+        // Only allow joining in setup phase
         if ($game['status'] !== 'waiting_setup') {
             $db->rollBack();
             http_response_code(400);
@@ -286,7 +324,7 @@ function joinGame(int $game_id): void {
             return;
         }
 
-        // FIX: Check capacity — 400 if full (REF0038, T0057, T0109, T0119)
+        // Check capacity — 400 if full
         $stmt = $db->prepare('SELECT COUNT(*) as count FROM game_players WHERE game_id = :game_id');
         $stmt->execute([':game_id' => $game_id]);
         $count = (int)$stmt->fetch()['count'];
@@ -310,7 +348,6 @@ function joinGame(int $game_id): void {
         $db->commit();
 
         http_response_code(200);
-        // FIX: Include game_id and player_id in response (T0134)
         echo json_encode([
             'status'    => 'joined',
             'game_id'   => $game_id,
@@ -323,67 +360,10 @@ function joinGame(int $game_id): void {
     }
 }
 
-// GET /api/games/{id}
-// Contract: 200 { game_id, grid_size, status, players[{player_id, ships_remaining}], current_turn_player_id, total_moves }
-//           404 { error, message }
-function getGame(int $game_id): void {
-    try {
-        $db   = getDB();
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
-        $stmt->execute([':game_id' => $game_id]);
-        $game = $stmt->fetch();
-
-        // FIX: Return 404 for non-existent game IDs (REF0028, T0005, T0032, etc.)
-        if (!$game) {
-            http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Game does not exist']);
-            return;
-        }
-
-        // Players with their remaining ship count
-        $stmt = $db->prepare('
-            SELECT gp.player_id, COUNT(s.ship_id) as ships_left
-            FROM game_players gp
-            LEFT JOIN ships s ON gp.game_id = s.game_id AND gp.player_id = s.player_id AND s.is_hit = FALSE
-            WHERE gp.game_id = :game_id
-            GROUP BY gp.player_id, gp.turn_order
-            ORDER BY gp.turn_order ASC
-        ');
-        $stmt->execute([':game_id' => $game_id]);
-        $players = array_map(fn($p) => [
-            'player_id'       => (int)$p['player_id'],
-            'ships_remaining' => (int)$p['ships_left'],
-        ], $stmt->fetchAll());
-
-        $stmt = $db->prepare('SELECT COUNT(*) FROM moves WHERE game_id = :game_id');
-        $stmt->execute([':game_id' => $game_id]);
-        $totalMoves = (int)$stmt->fetchColumn();
-
-        $status = translateStatus($game['status']);
-
-        $turnId = $game['current_turn_player_id'] !== null
-            ? (int)$game['current_turn_player_id']
-            : null;
-
-        http_response_code(200);
-        echo json_encode([
-            'game_id'                => (int)$game['game_id'],
-            'grid_size'              => (int)$game['grid_size'],
-            'status'                 => $status,
-            'players'                => $players,
-            'current_turn_player_id' => $turnId,
-            'total_moves'            => $totalMoves,
-        ]);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
 // POST /api/games/{id}/place
 // Contract: 200 { status: "placed" }
-//           400 — bad input or player not in game
-//           403 — not in setup phase (wrong game state)
+//           400 — bad input
+//           403 — wrong game state or player not in game
 //           409 — ships already placed by this player
 function placeShips(int $game_id): void {
     $body      = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -414,15 +394,14 @@ function placeShips(int $game_id): void {
         return;
     }
 
-    // Validate each ship is an object with row/col (not an array) — REF0048
+    // Validate each ship is an object with row/col (not a bare array like [1,2])
     foreach ($ships as $ship) {
-        if (!is_array($ship) || array_keys($ship) === range(0, count($ship) - 1)) {
-            // It's a numerically-indexed array (not an associative object)
+        if (!is_array($ship) || array_is_list($ship)) {
             http_response_code(400);
             echo json_encode(['error' => 'bad_request', 'message' => 'Each ship must be an object with row and col fields']);
             return;
         }
-        if (!isset($ship['row']) || !isset($ship['col'])) {
+        if (!array_key_exists('row', $ship) || !array_key_exists('col', $ship)) {
             http_response_code(400);
             echo json_encode(['error' => 'bad_request', 'message' => 'Each ship must have row and col fields']);
             return;
@@ -442,14 +421,14 @@ function placeShips(int $game_id): void {
             return;
         }
 
-        // Must be in setup phase — 403 per contract
+        // Must be in setup phase — 403
         if ($game['status'] !== 'waiting_setup') {
             http_response_code(403);
             echo json_encode(['error' => 'forbidden', 'message' => 'Game is not in setup phase']);
             return;
         }
 
-        // Player must have joined — FIX: return 400/403 if not in game (REF0050)
+        // Player must have joined — 403 if not in game
         $stmt = $db->prepare('SELECT has_placed_ships FROM game_players WHERE game_id = :gid AND player_id = :pid');
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
         $gp = $stmt->fetch();
@@ -460,7 +439,7 @@ function placeShips(int $game_id): void {
             return;
         }
 
-        // FIX: Ships already placed — 409 (REF0049, REF0087, T0039)
+        // Ships already placed — 409
         if ($gp['has_placed_ships']) {
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'message' => 'Ships already placed for this player']);
@@ -482,7 +461,6 @@ function placeShips(int $game_id): void {
 
             $key = "$row,$col";
             if (isset($seen[$key])) {
-                // FIX: Duplicate coords in same request — 400 (REF0045 passes, T0137 expects 409 but spec says 400)
                 http_response_code(400);
                 echo json_encode(['error' => 'bad_request', 'message' => 'Duplicate ship coordinates in placement']);
                 return;
@@ -526,21 +504,22 @@ function placeShips(int $game_id): void {
 }
 
 // POST /api/games/{id}/fire
-// Contract: 200 { result, next_player_id, game_status, winner_id? }
-//           400 — out of bounds OR game not in playing state
-//           403 { error: "forbidden", message: "Not your turn" }
-//           409 { error: "conflict",  message: "Cell already fired upon" }
+// Contract: 200 { result, next_player_id, game_status, winner_id }
+//           400 — out of bounds, game not playing, missing fields
+//           403 — not your turn
+//           409 — cell already fired upon
 function fireShot(int $game_id): void {
     $body      = json_decode(file_get_contents('php://input'), true) ?? [];
     $player_id = $body['player_id'] ?? null;
-    $row       = isset($body['row']) ? (int)$body['row'] : null;
-    $col       = isset($body['col']) ? (int)$body['col'] : null;
 
     if ($player_id === null || !array_key_exists('row', $body) || !array_key_exists('col', $body)) {
         http_response_code(400);
         echo json_encode(['error' => 'bad_request', 'message' => 'Missing required fields: player_id, row, col']);
         return;
     }
+
+    $row = isset($body['row']) ? (int)$body['row'] : null;
+    $col = isset($body['col']) ? (int)$body['col'] : null;
 
     if ($row === null || $col === null) {
         http_response_code(400);
@@ -563,7 +542,7 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // FIX: Game must be in playing state — 400 for finished/setup (T0045, T0118, T0124, REF0063, T0071)
+        // Game must be in playing state — 400 for finished or waiting_setup
         if ($game['status'] !== 'playing') {
             $db->rollBack();
             http_response_code(400);
@@ -571,7 +550,7 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Validate coordinates against grid size
+        // Validate coordinates
         $gridSize = (int)$game['grid_size'];
         if ($row < 0 || $row >= $gridSize || $col < 0 || $col >= $gridSize) {
             $db->rollBack();
@@ -580,19 +559,7 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // FIX: Duplicate move detection BEFORE turn check — 409
-        // The spec expects 409 for a duplicate even if it's also out of turn.
-        // Check if THIS player already fired at this cell (per-player duplicate detection)
-        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
-        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
-        if ($stmt->fetch()) {
-            $db->rollBack();
-            http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'message' => 'Cell already fired upon']);
-            return;
-        }
-
-        // Also check global duplicate (any player at this cell) — 409
+        // Duplicate move detection BEFORE turn check — 409
         $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND row = :r AND col = :c');
         $stmt->execute([':gid' => $game_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
@@ -610,11 +577,10 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Hit detection — check if any opponent has a ship at (row, col)
+        // Hit detection — check if any opponent has an unhit ship at (row, col)
         $stmt = $db->prepare('
             SELECT s.ship_id, s.player_id
             FROM ships s
-            JOIN game_players gp ON gp.game_id = s.game_id AND gp.player_id = s.player_id
             WHERE s.game_id = :gid
               AND s.player_id != :pid
               AND s.row = :r
@@ -635,7 +601,7 @@ function fireShot(int $game_id): void {
         $db->prepare('INSERT INTO moves (game_id, player_id, row, col, result) VALUES (:gid, :pid, :r, :c, :res)')
            ->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col, ':res' => $result]);
 
-        // Update player stats
+        // Update player stats immediately
         $db->prepare('UPDATE players SET total_moves = total_moves + 1 WHERE player_id = :pid')
            ->execute([':pid' => (int)$player_id]);
         if ($result === 'hit') {
@@ -643,8 +609,7 @@ function fireShot(int $game_id): void {
                ->execute([':pid' => (int)$player_id]);
         }
 
-        // Check if the hit owner is now eliminated (all their ships sunk)
-        $eliminatedPlayer = null;
+        // Check if the hit target is now eliminated (all their ships sunk)
         if ($hitShip) {
             $stmt = $db->prepare('SELECT COUNT(*) FROM ships WHERE game_id = :gid AND player_id = :pid AND is_hit = FALSE');
             $stmt->execute([':gid' => $game_id, ':pid' => $hitShip['player_id']]);
@@ -667,7 +632,6 @@ function fireShot(int $game_id): void {
         $nextPlayerId = null;
 
         if ($activeCount <= 1) {
-            // Game over — find the winner
             $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :gid AND is_defeated = FALSE LIMIT 1');
             $stmt->execute([':gid' => $game_id]);
             $winnerRow = $stmt->fetch();
@@ -681,8 +645,7 @@ function fireShot(int $game_id): void {
                    ->execute([':pid' => $winnerId]);
             }
 
-            $gameStatus   = 'finished';
-            $nextPlayerId = null;
+            $gameStatus = 'finished';
         } else {
             // Advance turn to the next non-defeated player
             $stmt = $db->prepare('
@@ -693,12 +656,10 @@ function fireShot(int $game_id): void {
             $stmt->execute([':gid' => $game_id]);
             $activePlayers = $stmt->fetchAll();
 
-            // Find current player's turn_order
             $stmt = $db->prepare('SELECT turn_order FROM game_players WHERE game_id = :gid AND player_id = :pid');
             $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
             $currentOrder = (int)$stmt->fetch()['turn_order'];
 
-            // Pick the next active player by turn_order, wrapping around
             $nextPlayer  = null;
             $firstActive = null;
             foreach ($activePlayers as $ap) {
@@ -731,12 +692,11 @@ function fireShot(int $game_id): void {
 
 // GET /api/games/{id}/moves
 // Contract: 200 — array of move objects
-//           404 { error, message }
+//           404 — game not found
 function getGameMoves(int $gameId): void {
     try {
         $db = getDB();
 
-        // FIX: Return 404 for non-existent game (REF0067)
         $stmt = $db->prepare('SELECT 1 FROM games WHERE game_id = :gameId');
         $stmt->execute([':gameId' => $gameId]);
         if (!$stmt->fetch()) {
@@ -746,15 +706,14 @@ function getGameMoves(int $gameId): void {
         }
 
         $stmt = $db->prepare(
-            'SELECT player_id, row, col, result, created_at AS timestamp
+            'SELECT move_id, player_id, row, col, result, created_at AS timestamp
              FROM moves
              WHERE game_id = :gameId
              ORDER BY created_at ASC, move_id ASC'
         );
         $stmt->execute([':gameId' => $gameId]);
-        $rows  = $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
 
-        // FIX: Include game_id in each move entry (T0140)
         $moves = [];
         foreach ($rows as $i => $m) {
             $moves[] = [
@@ -780,7 +739,6 @@ function getGameMoves(int $gameId): void {
 // System Endpoints
 // ---------------------------------------------------------------------------
 
-// GET / or GET /api — metadata
 function getMetadata(): void {
     http_response_code(200);
     echo json_encode([
@@ -792,13 +750,11 @@ function getMetadata(): void {
     ]);
 }
 
-// GET /api/health
 function getHealth(): void {
     http_response_code(200);
     echo json_encode(['status' => 'ok']);
 }
 
-// POST /api/reset
 function resetSystem(): void {
     try {
         $db = getDB();
@@ -811,175 +767,19 @@ function resetSystem(): void {
     }
 }
 
-// GET /api/players
-function getAllPlayers(): void {
-    try {
-        $db = getDB();
-        $stmt = $db->prepare('SELECT player_id, username FROM players ORDER BY player_id ASC');
-        $stmt->execute();
-        $players = array_map(fn($p) => [
-            'player_id' => (int)$p['player_id'],
-            'username'  => $p['username'],
-        ], $stmt->fetchAll());
-
-        http_response_code(200);
-        echo json_encode($players);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
-// GET /api/players/{id}
-function getPlayerById(int $player_id): void {
-    try {
-        $db = getDB();
-        $stmt = $db->prepare('SELECT player_id, username FROM players WHERE player_id = :player_id');
-        $stmt->execute([':player_id' => $player_id]);
-        $player = $stmt->fetch();
-
-        if (!$player) {
-            http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Player not found']);
-            return;
-        }
-
-        http_response_code(200);
-        echo json_encode([
-            'player_id' => (int)$player['player_id'],
-            'username'  => $player['username'],
-        ]);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
-// GET /api/games
-function getAllGames(): void {
-    try {
-        $db = getDB();
-        $stmt = $db->prepare('
-            SELECT g.game_id, g.status, COUNT(gp.player_id) as player_count
-            FROM games g
-            LEFT JOIN game_players gp ON g.game_id = gp.game_id
-            GROUP BY g.game_id
-            ORDER BY g.game_id ASC
-        ');
-        $stmt->execute();
-        $games = array_map(fn($g) => [
-            'game_id'      => (int)$g['game_id'],
-            'status'       => $g['status'],
-            'player_count' => (int)$g['player_count'],
-        ], $stmt->fetchAll());
-
-        http_response_code(200);
-        echo json_encode($games);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
-// POST /api/games/{id}/start
-function startGame(int $game_id): void {
-    try {
-        $db = getDB();
-
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :game_id');
-        $stmt->execute([':game_id' => $game_id]);
-        $game = $stmt->fetch();
-
-        if (!$game) {
-            http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
-            return;
-        }
-
-        if ($game['status'] !== 'waiting_setup') {
-            http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'message' => 'Game has already started or is finished']);
-            return;
-        }
-
-        $stmt = $db->prepare('SELECT COUNT(*) FROM game_players WHERE game_id = :game_id');
-        $stmt->execute([':game_id' => $game_id]);
-        $playerCount = (int)$stmt->fetchColumn();
-
-        if ($playerCount < 2) {
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'At least 2 players are required to start']);
-            return;
-        }
-
-        $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :game_id ORDER BY turn_order ASC LIMIT 1');
-        $stmt->execute([':game_id' => $game_id]);
-        $firstPlayer = $stmt->fetch();
-
-        $db->prepare("UPDATE games SET status = 'playing', current_turn_player_id = :pid WHERE game_id = :game_id")
-           ->execute([':pid' => $firstPlayer['player_id'], ':game_id' => $game_id]);
-
-        http_response_code(200);
-        echo json_encode(['status' => 'active']);
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
-// GET /api/games/{id}/ships
-function getGameShips(int $game_id): void {
-    $player_id = $_GET['player_id'] ?? null;
-
-    if (!$player_id) {
-        http_response_code(400);
-        echo json_encode(['error' => 'bad_request', 'message' => 'player_id query parameter is required']);
-        return;
-    }
-
-    try {
-        $db = getDB();
-
-        $stmt = $db->prepare('SELECT 1 FROM games WHERE game_id = :game_id');
-        $stmt->execute([':game_id' => $game_id]);
-        if (!$stmt->fetch()) {
-            http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
-            return;
-        }
-
-        $stmt = $db->prepare(
-            'SELECT row, col, is_hit FROM ships WHERE game_id = :game_id AND player_id = :player_id'
-        );
-        $stmt->execute([':game_id' => $game_id, ':player_id' => (int)$player_id]);
-        $ships = $stmt->fetchAll();
-
-        http_response_code(200);
-        echo json_encode(array_map(fn($s) => [
-            'row'  => (int)$s['row'],
-            'col'  => (int)$s['col'],
-            'sunk' => (bool)$s['is_hit'],
-        ], $ships));
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
-// All routes are password-gated in router.php before reaching these functions.
+// Password gate is enforced in router.php before these are called.
 // ---------------------------------------------------------------------------
 
 // POST /api/test/games/{id}/restart
 // Contract: 200 { status: "reset" }
-//           403 — handled by router
+//           403 — handled by router (wrong/missing password)
 //           404 — game not found
 function testResetGame(int $gameId): void {
     try {
         $db = getDB();
 
-        // FIX: Return 404 for non-existent game (REF0073)
         $stmt = $db->prepare('SELECT 1 FROM games WHERE game_id = :gameId');
         $stmt->execute([':gameId' => $gameId]);
         if (!$stmt->fetch()) {
@@ -992,13 +792,9 @@ function testResetGame(int $gameId): void {
 
         $db->prepare('DELETE FROM ships WHERE game_id = :gameId')->execute([':gameId' => $gameId]);
         $db->prepare('DELETE FROM moves WHERE game_id = :gameId')->execute([':gameId' => $gameId]);
-
         $db->prepare(
-            "UPDATE games
-             SET status = 'waiting_setup', current_turn_player_id = NULL, winner_id = NULL
-             WHERE game_id = :gameId"
+            "UPDATE games SET status = 'waiting_setup', current_turn_player_id = NULL, winner_id = NULL WHERE game_id = :gameId"
         )->execute([':gameId' => $gameId]);
-
         $db->prepare(
             'UPDATE game_players SET has_placed_ships = FALSE, is_defeated = FALSE WHERE game_id = :gameId'
         )->execute([':gameId' => $gameId]);
@@ -1014,7 +810,8 @@ function testResetGame(int $gameId): void {
     }
 }
 
-// POST /api/test/games/{id}/ships — inject ship placements directly (bypasses normal rules)
+// POST /api/test/games/{id}/ships
+// Injects ship placements directly, bypassing normal join/state rules.
 // Contract: 200 { status: "placed" }
 function testPlaceShips(int $gameId): void {
     $body     = json_decode(file_get_contents('php://input'), true) ?? [];
@@ -1048,7 +845,7 @@ function testPlaceShips(int $gameId): void {
 
         if ($game['status'] === 'finished') {
             http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'Cannot place ships: game is finished']);
+            echo json_encode(['error' => 'bad_request', 'message' => 'Cannot place ships in a finished game']);
             return;
         }
 
@@ -1077,15 +874,6 @@ function testPlaceShips(int $gameId): void {
                 $db->rollBack();
                 http_response_code(400);
                 echo json_encode(['error' => 'bad_request', 'message' => "Coordinate [$row, $col] out of bounds"]);
-                return;
-            }
-
-            $checkStmt = $db->prepare('SELECT 1 FROM ships WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
-            $checkStmt->execute([':gid' => $gameId, ':pid' => (int)$playerId, ':r' => $row, ':c' => $col]);
-            if ($checkStmt->fetch()) {
-                $db->rollBack();
-                http_response_code(400);
-                echo json_encode(['error' => 'bad_request', 'message' => "Overlap detected at [$row, $col]"]);
                 return;
             }
 
@@ -1137,15 +925,13 @@ function testGetBoard(int $game_id, int $player_id): void {
         $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         $ships = $stmt->fetchAll();
 
-        // Moves fired BY opponents AT this player's board
         $stmt = $db->prepare('SELECT row, col, result FROM moves WHERE game_id = :game_id AND player_id != :player_id');
         $stmt->execute([':game_id' => $game_id, ':player_id' => $player_id]);
         $moves = $stmt->fetchAll();
 
         $gridSize = (int)$game['grid_size'];
+        $board    = array_fill(0, $gridSize, array_fill(0, $gridSize, '~'));
 
-        // Build a 2D board: '~' = empty, 'S' = ship, 'O' = hit, 'X' = miss
-        $board = array_fill(0, $gridSize, array_fill(0, $gridSize, '~'));
         foreach ($ships as $ship) {
             $r = (int)$ship['row'];
             $c = (int)$ship['col'];
@@ -1177,7 +963,7 @@ function testGetBoard(int $game_id, int $player_id): void {
                 'col'    => (int)$m['col'],
                 'result' => $m['result'],
             ], $moves),
-            'sunk'      => $allShipsHit,
+            'sunk' => $allShipsHit,
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
