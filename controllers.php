@@ -580,7 +580,7 @@ function fireShot(int $game_id): void {
         if ((int)$game['current_turn_player_id'] !== (int)$player_id) {
             $db->rollBack();
             http_response_code(403);
-            echo json_encode(['error' => 'not your turn', 'message' => 'Not your turn']);
+            echo json_encode(['error' => 'forbidden', 'message' => 'Not your turn']);
             return;
         }
 
