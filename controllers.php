@@ -533,10 +533,10 @@ function placeShips(int $game_id): void {
 
         http_response_code(200);
         echo json_encode(['status' => 'placed', 'placed' => true]);
-    } catch (PDOException \$e) {
-        if (isset(\$db) && \$db->inTransaction()) \$db->rollBack();
+    } catch (PDOException $e) {
+        if (isset($db) && $db->inTransaction()) $db->rollBack();
         http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Placement failed: ' . \$e->getMessage()]);
+        echo json_encode(['error' => 'server_error', 'message' => 'Placement failed: ' . $e->getMessage()]);
     }
 }
 
