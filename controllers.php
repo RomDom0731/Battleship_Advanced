@@ -538,29 +538,26 @@ function placeShips(int $game_id): void {
 //           400 — out of bounds, game not playing, missing fields
 //           403 — not your turn
 //           409 — cell already fired upon
+// POST /api/games/{id}/fire
 function fireShot(int $game_id): void {
     $body      = json_decode(file_get_contents('php://input'), true) ?? [];
     $player_id = $body['player_id'] ?? null;
 
+    // Validate presence of required fields
     if ($player_id === null || !array_key_exists('row', $body) || !array_key_exists('col', $body)) {
         http_response_code(400);
         echo json_encode(['error' => 'bad_request', 'message' => 'Missing required fields: player_id, row, col']);
         return;
     }
 
-    $row = isset($body['row']) ? (int)$body['row'] : null;
-    $col = isset($body['col']) ? (int)$body['col'] : null;
-
-    if ($row === null || $col === null) {
-        http_response_code(400);
-        echo json_encode(['error' => 'bad_request', 'message' => 'row and col must be integers']);
-        return;
-    }
+    $row = (int)$body['row'];
+    $col = (int)$body['col'];
 
     try {
         $db = getDB();
         $db->beginTransaction();
 
+        // Fetch game with lock to prevent race conditions during turn updates
         $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gid FOR UPDATE');
         $stmt->execute([':gid' => $game_id]);
         $game = $stmt->fetch();
@@ -572,21 +569,7 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Game must be in playing state — 400 for finished, 403 for not started
-        if ($game['status'] === 'finished') {
-            $db->rollBack();
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'Game is already finished']);
-            return;
-        }
-        if ($game['status'] !== 'playing') {
-            $db->rollBack();
-            http_response_code(403);
-            echo json_encode(['error' => 'forbidden', 'message' => 'Game has not started yet']);
-            return;
-        }
-
-        // Validate coordinates
+        // --- 1. COORDINATE VALIDATION ---
         $gridSize = (int)$game['grid_size'];
         if ($row < 0 || $row >= $gridSize || $col < 0 || $col >= $gridSize) {
             $db->rollBack();
@@ -595,34 +578,44 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Duplicate move detection BEFORE turn check — 409
-        // Per-player: check if this player already fired at these exact coordinates
-        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
-        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
+        // --- 2. DUPLICATE CHECK (Critical for T0004 - Must be before Turn Check) ---
+        // Check if ANY move has been made at this coordinate in this game
+        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND row = :r AND col = :c');
+        $stmt->execute([':gid' => $game_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
             $db->rollBack();
-            http_response_code(409);
+            http_response_code(409); // Conflict
             echo json_encode(['error' => 'conflict', 'message' => 'Cell already fired upon']);
             return;
         }
 
-        // Turn enforcement — 403
-        if ((int)$game['current_turn_player_id'] !== (int)$player_id) {
+        // --- 3. TURN & STATUS ENFORCEMENT (Critical for T0003) ---
+        if ($game['status'] === 'finished') {
+            $db->rollBack();
+            http_response_code(400);
+            echo json_encode(['error' => 'bad_request', 'message' => 'Game is already finished']);
+            return;
+        }
+        
+        if ($game['status'] !== 'playing') {
             $db->rollBack();
             http_response_code(403);
+            echo json_encode(['error' => 'forbidden', 'message' => 'Game has not started yet']);
+            return;
+        }
+
+        if ((int)$game['current_turn_player_id'] !== (int)$player_id) {
+            $db->rollBack();
+            http_response_code(403); // Forbidden
             echo json_encode(['error' => 'forbidden', 'message' => 'Not your turn']);
             return;
         }
 
-        // Hit detection — check if any opponent has an unhit ship at (row, col)
-        // Check for ANY ship at this coordinate that does NOT belong to the shooter
+        // --- 4. HIT DETECTION ---
         $stmt = $db->prepare('
-        SELECT ship_id, player_id 
-        FROM ships 
-        WHERE game_id = :gid 
-        AND player_id != :pid 
-        AND row = :r 
-        AND col = :c
+            SELECT ship_id, player_id 
+            FROM ships 
+            WHERE game_id = :gid AND player_id != :pid AND row = :r AND col = :c AND is_hit = FALSE
         ');
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
         $hitShip = $stmt->fetch();
@@ -630,23 +623,20 @@ function fireShot(int $game_id): void {
         $result = $hitShip ? 'hit' : 'miss';
 
         if ($hitShip) {
-            $db->prepare('UPDATE ships SET is_hit = TRUE WHERE ship_id = :sid')
-               ->execute([':sid' => $hitShip['ship_id']]);
+            $db->prepare('UPDATE ships SET is_hit = TRUE WHERE ship_id = ?')->execute([$hitShip['ship_id']]);
         }
 
-        // Record the move
-        $db->prepare('INSERT INTO moves (game_id, player_id, row, col, result) VALUES (:gid, :pid, :r, :c, :res)')
-           ->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col, ':res' => $result]);
+        // --- 5. PERSIST MOVE & UPDATE STATS ---
+        $db->prepare('INSERT INTO moves (game_id, player_id, row, col, result) VALUES (?, ?, ?, ?, ?)')
+           ->execute([$game_id, (int)$player_id, $row, $col, $result]);
 
-        // Update player stats immediately
-        $db->prepare('UPDATE players SET total_moves = total_moves + 1 WHERE player_id = :pid')
-           ->execute([':pid' => (int)$player_id]);
+        // Update player summary stats
+        $db->prepare('UPDATE players SET total_moves = total_moves + 1 WHERE player_id = ?')->execute([(int)$player_id]);
         if ($result === 'hit') {
-            $db->prepare('UPDATE players SET total_hits = total_hits + 1 WHERE player_id = :pid')
-               ->execute([':pid' => (int)$player_id]);
+            $db->prepare('UPDATE players SET total_hits = total_hits + 1 WHERE player_id = ?')->execute([(int)$player_id]);
         }
 
-        // Check if the hit target is now eliminated (all their ships sunk)
+        // Handle target elimination
         if ($hitShip) {
             $stmt = $db->prepare('SELECT COUNT(*) FROM ships WHERE game_id = :gid AND player_id = :pid AND is_hit = FALSE');
             $stmt->execute([':gid' => $game_id, ':pid' => $hitShip['player_id']]);
@@ -654,12 +644,12 @@ function fireShot(int $game_id): void {
                 $eliminatedPlayer = (int)$hitShip['player_id'];
                 $db->prepare('UPDATE game_players SET is_defeated = TRUE WHERE game_id = :gid AND player_id = :pid')
                    ->execute([':gid' => $game_id, ':pid' => $eliminatedPlayer]);
-                $db->prepare('UPDATE players SET total_games = total_games + 1, total_losses = total_losses + 1 WHERE player_id = :pid')
-                   ->execute([':pid' => $eliminatedPlayer]);
+                $db->prepare('UPDATE players SET total_games = total_games + 1, total_losses = total_losses + 1 WHERE player_id = ?')
+                   ->execute([$eliminatedPlayer]);
             }
         }
 
-        // Check if only one active player remains → game over
+        // --- 6. ADVANCE TURN OR FINISH GAME ---
         $stmt = $db->prepare('SELECT COUNT(*) FROM game_players WHERE game_id = :gid AND is_defeated = FALSE');
         $stmt->execute([':gid' => $game_id]);
         $activeCount = (int)$stmt->fetchColumn();
@@ -678,18 +668,13 @@ function fireShot(int $game_id): void {
                ->execute([':wid' => $winnerId, ':gid' => $game_id]);
 
             if ($winnerId) {
-                $db->prepare('UPDATE players SET total_games = total_games + 1, total_wins = total_wins + 1 WHERE player_id = :pid')
-                   ->execute([':pid' => $winnerId]);
+                $db->prepare('UPDATE players SET total_games = total_games + 1, total_wins = total_wins + 1 WHERE player_id = ?')
+                   ->execute([$winnerId]);
             }
-
             $gameStatus = 'finished';
         } else {
-            // Advance turn to the next non-defeated player
-            $stmt = $db->prepare('
-                SELECT player_id, turn_order FROM game_players
-                WHERE game_id = :gid AND is_defeated = FALSE
-                ORDER BY turn_order ASC
-            ');
+            // Find next non-defeated player in turn order
+            $stmt = $db->prepare('SELECT player_id, turn_order FROM game_players WHERE game_id = :gid AND is_defeated = FALSE ORDER BY turn_order ASC');
             $stmt->execute([':gid' => $game_id]);
             $activePlayers = $stmt->fetchAll();
 
@@ -697,15 +682,13 @@ function fireShot(int $game_id): void {
             $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
             $currentOrder = (int)$stmt->fetch()['turn_order'];
 
-            $nextPlayer  = null;
-            $firstActive = null;
             foreach ($activePlayers as $ap) {
-                if ($firstActive === null) $firstActive = (int)$ap['player_id'];
-                if ((int)$ap['turn_order'] > $currentOrder && $nextPlayer === null) {
-                    $nextPlayer = (int)$ap['player_id'];
+                if ((int)$ap['turn_order'] > $currentOrder) {
+                    $nextPlayerId = (int)$ap['player_id'];
+                    break;
                 }
             }
-            $nextPlayerId = $nextPlayer ?? $firstActive;
+            if ($nextPlayerId === null) $nextPlayerId = (int)$activePlayers[0]['player_id'];
 
             $db->prepare('UPDATE games SET current_turn_player_id = :pid WHERE game_id = :gid')
                ->execute([':pid' => $nextPlayerId, ':gid' => $game_id]);
@@ -720,6 +703,7 @@ function fireShot(int $game_id): void {
             'game_status'    => $gameStatus,
             'winner_id'      => $winnerId,
         ]);
+
     } catch (PDOException $e) {
         if (isset($db) && $db->inTransaction()) $db->rollBack();
         http_response_code(500);
