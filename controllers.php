@@ -44,7 +44,7 @@ function createPlayer(): void {
         $stmt->execute([$username]);
         if ($stmt->fetch()) {
             http_response_code(409);
-            echo json_encode(['error' => 'Username already taken', 'message' => 'Username already taken']);
+            echo json_encode(['error' => 'conflict', 'message' => 'Username already taken']);
             return;
         }
 
@@ -97,7 +97,7 @@ function getPlayer(int $player_id): void {
 
         $totalShots = (int)$player['total_moves'];
         $totalHits  = (int)$player['total_hits'];
-        $accuracy   = $totalShots > 0 ? round($totalHits / $totalShots, 3) : 0.0;
+        $accuracy   = $totalShots > 0 ? round((float)$totalHits / $totalShots, 3) : 0.0;
 
         http_response_code(200);
         echo json_encode([
@@ -480,10 +480,23 @@ function placeShips(int $game_id): void {
         $db->prepare('UPDATE game_players SET has_placed_ships = TRUE WHERE game_id = :gid AND player_id = :pid')
            ->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
 
-        // Transition to playing if ALL players have placed ships
+        // --- NEW TRANSITION LOGIC GOES HERE ---
+        // 1. Check if the game has reached max capacity
+        $stmt = $db->prepare('SELECT max_players FROM games WHERE game_id = :gid');
+        $stmt->execute([':gid' => $game_id]);
+        $maxPlayers = (int)$stmt->fetchColumn();
+
+        $stmt = $db->prepare('SELECT COUNT(*) FROM game_players WHERE game_id = :gid');
+        $stmt->execute([':gid' => $game_id]);
+        $joinedCount = (int)$stmt->fetchColumn();
+
+        // 2. Check if all joined players are ready (none left with FALSE)
         $stmt = $db->prepare('SELECT COUNT(*) FROM game_players WHERE game_id = :gid AND has_placed_ships = FALSE');
         $stmt->execute([':gid' => $game_id]);
-        if ((int)$stmt->fetchColumn() === 0) {
+        $notPlacedCount = (int)$stmt->fetchColumn();
+
+        // 3. Only transition if FULL and EVERYONE is ready
+        if ($joinedCount === $maxPlayers && $notPlacedCount === 0) {
             $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :gid ORDER BY turn_order ASC LIMIT 1');
             $stmt->execute([':gid' => $game_id]);
             $firstPlayer = $stmt->fetch();
@@ -491,6 +504,7 @@ function placeShips(int $game_id): void {
             $db->prepare("UPDATE games SET status = 'playing', current_turn_player_id = :pid WHERE game_id = :gid")
                ->execute([':pid' => $firstPlayer['player_id'], ':gid' => $game_id]);
         }
+        // --- END OF NEW TRANSITION LOGIC ---
 
         $db->commit();
 
@@ -585,14 +599,14 @@ function fireShot(int $game_id): void {
         }
 
         // Hit detection — check if any opponent has an unhit ship at (row, col)
+        // Check for ANY ship at this coordinate that does NOT belong to the shooter
         $stmt = $db->prepare('
-            SELECT s.ship_id, s.player_id
-            FROM ships s
-            WHERE s.game_id = :gid
-              AND s.player_id != :pid
-              AND s.row = :r
-              AND s.col = :c
-              AND s.is_hit = FALSE
+        SELECT ship_id, player_id 
+        FROM ships 
+        WHERE game_id = :gid 
+        AND player_id != :pid 
+        AND row = :r 
+        AND col = :c
         ');
         $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
         $hitShip = $stmt->fetch();
