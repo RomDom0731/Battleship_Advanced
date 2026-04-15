@@ -44,7 +44,7 @@ function createPlayer(): void {
     try {
         $db = getDB();
 
-        $stmt = $db->prepare("SELECT player_id FROM players WHERE username = ?");
+        $stmt = $db->prepare("SELECT player_id FROM players WHERE LOWER(username) = LOWER(?)");
         $stmt->execute([$username]);
         if ($stmt->fetch()) {
             http_response_code(409);
@@ -62,6 +62,12 @@ function createPlayer(): void {
             'username'  => $username,
         ]);
     } catch (PDOException $e) {
+        // Unique constraint violation (error code 23505 in PostgreSQL)
+        if (str_contains($e->getMessage(), '23505') || str_contains($e->getMessage(), 'unique')) {
+            http_response_code(409);
+            echo json_encode(['error' => 'conflict', 'message' => 'Username already taken']);
+            return;
+        }
         http_response_code(500);
         echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
     }
@@ -474,8 +480,8 @@ function placeShips(int $game_id): void {
 
             $key = "$row,$col";
             if (isset($seen[$key])) {
-                http_response_code(400);
-                echo json_encode(['error' => 'bad_request', 'message' => 'Duplicate ship coordinates in placement']);
+                http_response_code(409);
+                echo json_encode(['error' => 'conflict', 'message' => 'Duplicate ship coordinates in placement']);
                 return;
             }
             $seen[$key] = true;
@@ -522,10 +528,7 @@ function placeShips(int $game_id): void {
         $db->commit();
 
         http_response_code(200);
-        echo json_encode([
-            'status' => true,      // Fixes the "expected True" mismatch
-            'message' => 'placed'  // Keeps the descriptive status available
-        ]);
+        echo json_encode(['status' => 'placed']);
     } catch (PDOException $e) {
         if (isset($db) && $db->inTransaction()) $db->rollBack();
         http_response_code(500);
@@ -596,9 +599,9 @@ function fireShot(int $game_id): void {
         }
 
         // Duplicate move detection BEFORE turn check — 409
-        // Per-player: check if this player already fired at these exact coordinates
-        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
-        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
+        // Game-wide: any player firing at an already-targeted coordinate in this game returns 409
+        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND row = :r AND col = :c');
+        $stmt->execute([':gid' => $game_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
             $db->rollBack();
             http_response_code(409);
@@ -936,10 +939,7 @@ function testPlaceShips(int $gameId): void {
         $db->commit();
 
         http_response_code(200);
-        echo json_encode([
-            'status' => true,      // Fixes the "expected True" mismatch
-            'message' => 'placed'  // Keeps the descriptive status available
-        ]);
+        echo json_encode(['status' => 'placed']);
     } catch (PDOException $e) {
         if (isset($db) && $db->inTransaction()) $db->rollBack();
         http_response_code(500);

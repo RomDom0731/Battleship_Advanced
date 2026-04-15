@@ -47,8 +47,11 @@ if (isset($segments[0]) && $segments[0] === 'players') {
 // --- Test / Autograder Endpoints ---
 // Must be checked BEFORE game endpoints so /api/test/games/... isn't caught by the games block.
 if (isset($segments[0]) && $segments[0] === 'test') {
-    // Direct retrieval is more reliable on Render/Apache
-    $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    // Try multiple ways to read the header for compatibility with Render/Apache/nginx
+    $password = $_SERVER['HTTP_X_TEST_PASSWORD']
+        ?? $_SERVER['HTTP_X_Test_Password']
+        ?? (function_exists('getallheaders') ? (getallheaders()['X-Test-Password'] ?? '') : '')
+        ?? '';
 
     if (empty($password) || $password !== 'clemson-test-2026') {
         http_response_code(403);
