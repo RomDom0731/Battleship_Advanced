@@ -1,10 +1,14 @@
 Options -Indexes
+DirectoryIndex client.html
 RewriteEngine On
 
-# Route /api/* to index.php (the PHP backend)
+# 1. Let real files be served as-is (client.html, images, etc.)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# 2. Route /api/* to the PHP backend
 RewriteRule ^api(/.*)?$ index.php [L,QSA]
 
-# Route everything else to the frontend HTML file
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+# 3. Everything else → frontend
 RewriteRule ^ client.html [L]
+
