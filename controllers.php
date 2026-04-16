@@ -775,7 +775,7 @@ function getGameMoves(int $gameId): void {
         }
 
         http_response_code(200);
-        echo json_encode($moves);
+        echo json_encode(['game_id' => $gameId, 'moves' => $moves]);
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);

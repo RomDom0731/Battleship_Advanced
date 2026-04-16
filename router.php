@@ -48,7 +48,8 @@ if (isset($segments[0]) && $segments[0] === 'players') {
 // Must be checked BEFORE game endpoints so /api/test/games/... isn't caught by the games block.
 if (isset($segments[0]) && $segments[0] === 'test') {
     // Direct retrieval is more reliable on Render/Apache
-    $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    $allHeaders = array_change_key_case(getallheaders(), CASE_LOWER);
+    $password = $allHeaders['x-test-password'] ?? $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
 
     if (empty($password) || $password !== 'clemson-test-2026') {
         http_response_code(403);
