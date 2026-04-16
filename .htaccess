@@ -1,4 +1,10 @@
+Options -Indexes
 RewriteEngine On
+
+# Route /api/* to index.php (the PHP backend)
+RewriteRule ^api(/.*)?$ index.php [L,QSA]
+
+# Route everything else to the frontend HTML file
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [QSA,L]
+RewriteRule ^ client.html [L]

@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Battleship</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Space Mono', 'Courier New', monospace;
+    background: #f4f3ef;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a18; color: #e8e6e0; }
+    .card { background: #252522 !important; border-color: #3a3a36 !important; }
+    .surface { background: #2e2e2a !important; }
+    input, select { background: #2e2e2a !important; color: #e8e6e0 !important; border-color: #3a3a36 !important; }
+    .nav { background: #252522 !important; border-color: #3a3a36 !important; }
+    .muted { color: #888 !important; }
+  }
+
+  /* Nav */
+  .nav {
+    background: #fff;
+    border-bottom: 0.5px solid #ddd;
+    padding: 0 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    height: 54px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+    min-height: 54px;
+  }
+  .logo { font-size: 14px; font-weight: 700; letter-spacing: 0.14em; display: flex; align-items: center; gap: 8px; }
+  .logo-icon { font-size: 18px; }
+  .nav-spacer { flex: 1; }
+  .user-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #1D9E75; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+
+  /* Buttons */
+  .btn {
+    background: transparent;
+    border: 0.5px solid #ccc;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.05em;
+    color: inherit;
+    transition: background 0.12s, opacity 0.12s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: rgba(0,0,0,0.05); }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: #1D9E75; color: #fff; border: none; }
+  .btn-primary:hover { background: #189060; }
+  .btn-danger { background: #D85A30; color: #fff; border: none; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .btn-tab { border-radius: 6px; }
+  .btn-tab.active { background: #f0ede8; border-color: #bbb; font-weight: 700; }
+
+  /* Cards */
+  .card {
+    background: #fff;
+    border: 0.5px solid #e0ddd6;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+  .surface { background: #eeece7; border-radius: 8px; padding: 12px 16px; }
+
+  /* Form */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 5px; }
+  input[type=text], input[type=number], select {
+    width: 100%; background: #f5f4f0; border: 0.5px solid #ddd;
+    border-radius: 8px; padding: 8px 12px; font-size: 13px;
+    font-family: inherit; color: inherit; outline: none;
+  }
+  input[type=text]:focus, input[type=number]:focus { border-color: #1D9E75; }
+  input[type=range] { width: 100%; accent-color: #1D9E75; }
+
+  /* Badges */
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 99px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  }
+  .badge-open   { background: #e1f5ee; color: #0f6e56; }
+  .badge-live   { background: #eaf3de; color: #3b6d11; }
+  .badge-done   { background: #faece7; color: #993c1d; }
+  .badge-turn   { background: #faeeda; color: #854f0b; }
+  .badge-joined { background: #e6f1fb; color: #185fa5; }
+  .badge-hit    { background: #fcebeb; color: #a32d2d; }
+  .badge-miss   { background: #e6f1fb; color: #185fa5; }
+  .badge-win    { background: #e1f5ee; color: #0f6e56; }
+
+  /* Alerts */
+  .alert { border-radius: 8px; padding: 8px 12px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .alert-error   { background: #fcebeb; border: 0.5px solid #f09595; color: #791f1f; }
+  .alert-success { background: #e1f5ee; border: 0.5px solid #5dcaa5; color: #085041; }
+  .close-btn { background: none; border: none; cursor: pointer; color: inherit; font-size: 18px; line-height: 1; flex-shrink: 0; }
+
+  /* Section title */
+  .section-title { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #888; font-weight: 700; margin-bottom: 10px; }
+
+  /* Grid */
+  .grid-wrap { overflow-x: auto; display: inline-block; }
+  .grid-row { display: flex; }
+  .cell {
+    display: flex; align-items: center; justify-content: center;
+    border: 0.5px solid #ddd; border-radius: 3px;
+    font-size: 13px; line-height: 1; flex-shrink: 0;
+    transition: background 0.1s, transform 0.08s;
+    user-select: none;
+  }
+  .cell-empty  { background: #eeece7; }
+  .cell-ship   { background: #1D9E75; color: #fff; }
+  .cell-hit    { background: #D85A30; color: #fff; transform: scale(1.06); }
+  .cell-miss   { background: #378ADD; color: #fff; }
+  .cell-select { background: #5DCAA5; color: #fff; }
+  .cell-clickable { cursor: crosshair; }
+  .cell-clickable:hover { filter: brightness(0.88); }
+
+  /* Stat cards */
+  .stat-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stat-card { background: #eeece7; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 70px; }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #888; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+
+  /* Move log */
+  .move-log { max-height: 200px; overflow-y: auto; }
+  .move-row { display: flex; gap: 12px; align-items: center; padding: 5px 0; border-bottom: 0.5px solid #eee; font-size: 12px; }
+  .move-row:last-child { border-bottom: none; }
+  .move-time { color: #aaa; min-width: 72px; font-variant-numeric: tabular-nums; }
+
+  /* Layout helpers */
+  .flex { display: flex; }
+  .flex-wrap { flex-wrap: wrap; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .gap-16 { gap: 16px; }
+  .flex-1 { flex: 1; }
+  .mb-8 { margin-bottom: 8px; }
+  .mb-12 { margin-bottom: 12px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .text-muted { color: #888; }
+  .text-sm { font-size: 12px; }
+  .text-xs { font-size: 11px; }
+  .fw-bold { font-weight: 700; }
+  .ml-auto { margin-left: auto; }
+  .w-full { width: 100%; }
+  .text-center { text-align: center; }
+
+  /* Page container */
+  .page { max-width: 860px; margin: 0 auto; padding: 1.5rem 1rem; }
+
+  /* Modal overlay */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center; z-index: 200;
+  }
+  .modal { max-width: 400px; width: 90%; margin: 16px; }
+
+  /* Game list row */
+  .game-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .game-info { flex: 1; min-width: 140px; }
+  .game-title { font-weight: 700; font-size: 14px; }
+  .game-meta  { font-size: 11px; color: #888; margin-top: 2px; }
+
+  /* Winner banner */
+  .winner-banner { border: 2px solid #1D9E75; border-radius: 12px; padding: 1rem; text-align: center; margin-bottom: 16px; }
+  .winner-text { font-size: 22px; font-weight: 700; color: #0f6e56; }
+
+  /* Boards layout */
+  .boards { display: flex; gap: 16px; flex-wrap: wrap; }
+  .board-panel { flex: 1; min-width: 220px; }
+
+  /* Placement legend */
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  /* Pulse animation for live badge */
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .pulse { animation: pulse 2s infinite; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const initials = (s = "") => s.slice(0, 2).toUpperCase();
+const fmtAcc   = (n) => (n * 100).toFixed(1) + "%";
+const fmtTime  = (ts) => ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+const statusBadge = (s) => s === "playing" ? "badge-live" : s === "finished" ? "badge-done" : "badge-open";
+const statusLabel = (s) => s === "waiting_setup" ? "OPEN" : s === "playing" ? "LIVE" : "DONE";
+
+function useLocalStorage(key, def) {
+  const [val, setVal] = useState(() => {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch { return def; }
+  });
+  const set = useCallback((v) => {
+    setVal(v);
+    try { localStorage.setItem(key, JSON.stringify(typeof v === "function" ? v(val) : v)); } catch {}
+  }, [key]);
+  return [val, set];
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+function makeApi(base) {
+  base = base.replace(/\/$/, "");
+  async function call(method, path, body) {
+    const opts = { method, headers: { "Content-Type": "application/json" } };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    const res = await fetch(`${base}/api${path}`, opts);
+    const data = await res.json();
+    if (!res.ok) throw data;
+    return data;
+  }
+  return {
+    createPlayer: (username)              => call("POST", "/players", { username }),
+    getStats:     (id)                    => call("GET",  `/players/${id}/stats`),
+    getGames:     ()                      => call("GET",  "/games"),
+    getGame:      (id)                    => call("GET",  `/games/${id}`),
+    createGame:   (b)                     => call("POST", "/games", b),
+    joinGame:     (id, pid)              => call("POST", `/games/${id}/join`, { player_id: pid }),
+    placeShips:   (id, pid, ships)       => call("POST", `/games/${id}/place`, { player_id: pid, ships }),
+    fireShot:     (id, pid, row, col)    => call("POST", `/games/${id}/fire`, { player_id: pid, row, col }),
+    getMoves:     (id)                   => call("GET",  `/games/${id}/moves`),
+  };
+}
+
+// ── Components ────────────────────────────────────────────────────────────────
+
+function Alert({ type = "error", msg, onClose }) {
+  if (!msg) return null;
+  return (
+    <div className={`alert alert-${type}`}>
+      <span>{msg}</span>
+      {onClose && <button className="close-btn" onClick={onClose}>×</button>}
+    </div>
+  );
+}
+
+function Cell({ state, size, onClick }) {
+  const sz = Math.max(20, Math.min(40, Math.floor(340 / size)));
+  const cls = ["cell", `cell-${state || "empty"}`, onClick ? "cell-clickable" : ""].join(" ");
+  const icon = state === "hit" ? "✕" : state === "miss" ? "·" : state === "ship" || state === "select" ? "▪" : "";
+  return (
+    <div className={cls} style={{ width: sz, height: sz, fontSize: sz * 0.42 }} onClick={onClick}>
+      {icon}
+    </div>
+  );
+}
+
+function Grid({ size, states = {}, onCell, clickable }) {
+  return (
+    <div className="grid-wrap">
+      {Array.from({ length: size }, (_, r) => (
+        <div key={r} className="grid-row">
+          {Array.from({ length: size }, (_, c) => {
+            const key = `${r},${c}`;
+            return (
+              <Cell
+                key={c}
+                state={states[key]}
+                size={size}
+                onClick={clickable ? () => onCell(r, c) : undefined}
+              />
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Register ──────────────────────────────────────────────────────────────────
+function RegisterPage({ onRegister }) {
+  const [server, setServer] = useLocalStorage("bs_server", window.location.origin);
+  const [username, setUsername] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async () => {
+    if (!username.trim()) { setErr("Username is required."); return; }
+    if (!server.trim())   { setErr("Server URL is required."); return; }
+    setBusy(true); setErr("");
+    try {
+      const api = makeApi(server.trim());
+      const res = await api.createPlayer(username.trim());
+      onRegister({ player_id: res.player_id, username: username.trim() }, server.trim());
+    } catch (e) {
+      const msg = e.message || e.error_message || e.error || "";
+      if (typeof msg === "string" && msg.toLowerCase().includes("taken")) {
+        setErr("Username already taken. Try another.");
+      } else if (!msg) {
+        setErr("Cannot reach server. Check the URL and CORS headers.");
+      } else {
+        setErr(msg || "Registration failed.");
+      }
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ maxWidth: 420, margin: "3rem auto", padding: "0 1rem" }}>
+      <div className="card">
+        <div className="mb-16">
+          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 4 }}>⊕ BATTLESHIP</div>
+          <div className="text-sm text-muted">Configure your server and register to play.</div>
+        </div>
+
+        <div className="field">
+          <label>Server URL</label>
+          <input
+            type="text"
+            value={server}
+            onChange={e => setServer(e.target.value)}
+            placeholder="https://your-server.onrender.com"
+          />
+        </div>
+
+        <div className="field">
+          <label>Username</label>
+          <input
+            type="text"
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && submit()}
+            placeholder="alphanumeric_only"
+            maxLength={30}
+          />
+          <div className="text-xs text-muted mt-8">Letters, numbers, underscores. Max 30 chars.</div>
+        </div>
+
+        <Alert type="error" msg={err} onClose={() => setErr("")} />
+
+        <button className="btn btn-primary w-full" onClick={submit} disabled={busy}>
+          {busy ? "Registering…" : "Register & Play →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Lobby ─────────────────────────────────────────────────────────────────────
+function Lobby({ player, api, myGameIds, onOpenGame }) {
+  const [games, setGames]       = useState([]);
+  const [err, setErr]           = useState("");
+  const [showCreate, setShow]   = useState(false);
+  const [gridSize, setGrid]     = useState(10);
+  const [maxP, setMaxP]         = useState(2);
+  const [creating, setCreating] = useState(false);
+  const [joining, setJoining]   = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const list = await api.getGames();
+      const details = await Promise.allSettled(list.map(g => api.getGame(g.game_id)));
+      setGames(details.map((r, i) => r.status === "fulfilled" ? r.value : list[i]));
+    } catch { setErr("Cannot reach server. Check your server URL."); }
+  }, [api]);
+
+  useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
+
+  const handleCreate = async () => {
+    setCreating(true); setErr("");
+    try {
+      const g = await api.createGame({ creator_id: player.player_id, grid_size: gridSize, max_players: maxP });
+      await api.joinGame(g.game_id, player.player_id);
+      onOpenGame(g.game_id);
+    } catch (e) { setErr(e.message || "Failed to create game."); }
+    finally { setCreating(false); }
+  };
+
+  const handleJoin = async (gameId) => {
+    setJoining(gameId); setErr("");
+    try {
+      await api.joinGame(gameId, player.player_id);
+      onOpenGame(gameId);
+    } catch (e) {
+      const msg = (e.message || e.error_message || "").toLowerCase();
+      if (msg.includes("already")) { onOpenGame(gameId); return; }
+      setErr(e.message || e.error_message || "Cannot join game.");
+    } finally { setJoining(null); }
+  };
+
+  return (
+    <div className="page">
+      <div className="flex gap-8 mb-16" style={{ alignItems: "center" }}>
+        <div className="section-title" style={{ margin: 0 }}>Game Lobby</div>
+        <div className="ml-auto flex gap-8">
+          <button className="btn btn-sm" onClick={load}>↻</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShow(v => !v)}>+ New Game</button>
+        </div>
+      </div>
+
+      <Alert type="error" msg={err} onClose={() => setErr("")} />
+
+      {myGameIds.length > 0 && (
+        <div className="mb-16">
+          <div className="text-xs text-muted mb-8">YOUR GAMES</div>
+          <div className="flex gap-8 flex-wrap">
+            {myGameIds.map(id => (
+              <button key={id} className="btn btn-primary btn-sm" onClick={() => onOpenGame(id)}>→ Game #{id}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="card mb-16">
+          <div className="section-title">New Game</div>
+          <div className="flex gap-16 flex-wrap mb-12">
+            <div className="flex-1" style={{ minWidth: 120 }}>
+              <div className="text-xs text-muted mb-8">Grid Size: {gridSize}×{gridSize}</div>
+              <input type="range" min={5} max={15} value={gridSize} onChange={e => setGrid(+e.target.value)} />
+            </div>
+            <div className="flex-1" style={{ minWidth: 120 }}>
+              <div className="text-xs text-muted mb-8">Max Players: {maxP}</div>
+              <input type="range" min={2} max={10} value={maxP} onChange={e => setMaxP(+e.target.value)} />
+            </div>
+          </div>
+          <button className="btn btn-primary" onClick={handleCreate} disabled={creating}>
+            {creating ? "Creating…" : `Create ${gridSize}×${gridSize} · ${maxP}P`}
+          </button>
+        </div>
+      )}
+
+      <div className="flex" style={{ flexDirection: "column", gap: 8 }}>
+        {games.length === 0 && (
+          <div className="card text-sm text-muted">No games found. Create one to get started!</div>
+        )}
+        {games.map(g => {
+          const inGame = myGameIds.includes(g.game_id);
+          const open   = g.status === "waiting_setup";
+          const count  = g.players?.length ?? "?";
+          return (
+            <div key={g.game_id} className="card game-row">
+              <div className="game-info">
+                <div className="game-title">Game #{g.game_id}</div>
+                <div className="game-meta">
+                  {g.grid_size}×{g.grid_size} · {count} player{count !== 1 ? "s" : ""} · {g.total_moves ?? 0} moves
+                </div>
+              </div>
+              <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
+              {inGame && <span className="badge badge-joined">JOINED</span>}
+              {inGame
+                ? <button className="btn btn-primary btn-sm" onClick={() => onOpenGame(g.game_id)}>Open →</button>
+                : open
+                  ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>
+                      {joining === g.game_id ? "…" : "Join"}
+                    </button>
+                  : <button className="btn btn-sm" disabled>Closed</button>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Ship Placement ────────────────────────────────────────────────────────────
+function PlaceShips({ gameId, player, api, gridSize, onPlaced }) {
+  const [sel, setSel] = useState(new Set());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr]   = useState("");
+
+  const toggle = (r, c) => {
+    const k = `${r},${c}`;
+    setSel(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  };
+
+  const states = {};
+  for (const k of sel) states[k] = "select";
+
+  const confirm = async () => {
+    if (sel.size < 3) { setErr("Place at least 3 ships."); return; }
+    setBusy(true); setErr("");
+    try {
+      const ships = [...sel].map(k => { const [row, col] = k.split(",").map(Number); return { row, col }; });
+      await api.placeShips(gameId, player.player_id, ships);
+      onPlaced();
+    } catch (e) { setErr(e.message || "Placement failed."); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div>
+      <div className="section-title">Place Ships — Game #{gameId}</div>
+      <div className="legend mb-8">
+        <div className="legend-item"><div className="legend-dot" style={{ background: "#5DCAA5" }}></div>Your ship</div>
+        <div className="legend-item"><div className="legend-dot" style={{ background: "#eeece7", border: "0.5px solid #ccc" }}></div>Empty</div>
+      </div>
+      <div className="text-sm text-muted mb-12">Click cells to place ships. Min 3 · Selected: {sel.size}</div>
+      <Alert type="error" msg={err} onClose={() => setErr("")} />
+      <div className="mb-12">
+        <Grid size={gridSize} states={states} onCell={toggle} clickable />
+      </div>
+      <div className="flex gap-8">
+        <button className="btn" onClick={() => setSel(new Set())}>Clear</button>
+        <button className="btn btn-primary" onClick={confirm} disabled={busy || sel.size < 3}>
+          {busy ? "Placing…" : `Confirm ${sel.size} Ships →`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Stats Modal ───────────────────────────────────────────────────────────────
+function StatsModal({ player, api, onClose }) {
+  const [stats, setStats] = useState(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    api.getStats(player.player_id)
+      .then(setStats)
+      .catch(() => setErr("Could not load stats."));
+  }, []);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="card modal" onClick={e => e.stopPropagation()}>
+        <div className="fw-bold mb-12" style={{ fontSize: 14 }}>Player Stats — {player.username}</div>
+        <Alert type="error" msg={err} />
+        {stats ? (
+          <>
+            <div className="stat-grid">
+              <div className="stat-card"><div className="stat-label">Games</div><div className="stat-value">{stats.games_played}</div></div>
+              <div className="stat-card"><div className="stat-label">Wins</div><div className="stat-value">{stats.wins}</div></div>
+              <div className="stat-card"><div className="stat-label">Losses</div><div className="stat-value">{stats.losses}</div></div>
+              <div className="stat-card"><div className="stat-label">Accuracy</div><div className="stat-value">{fmtAcc(stats.accuracy)}</div></div>
+            </div>
+            <div className="text-xs text-muted">Shots: {stats.total_shots} · Hits: {stats.total_hits}</div>
+          </>
+        ) : !err && <div className="text-sm text-muted">Loading…</div>}
+        <button className="btn mt-12" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Game ──────────────────────────────────────────────────────────────────────
+function GamePage({ gameId, player, api, onBack }) {
+  const [game, setGame]       = useState(null);
+  const [moves, setMoves]     = useState([]);
+  const [placed, setPlaced]   = useState(false);
+  const [targetId, setTarget] = useState(null);
+  const [firing, setFiring]   = useState(false);
+  const [err, setErr]         = useState("");
+  const [notice, setNotice]   = useState("");
+  const [showStats, setStats] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [g, m] = await Promise.all([api.getGame(gameId), api.getMoves(gameId)]);
+      setGame(g);
+      setMoves(m);
+      // If the player is in the game and the game is no longer waiting, they must have placed
+      if (g.status !== "waiting_setup") setPlaced(true);
+      // Auto-select first opponent
+      const others = g.players?.filter(p => p.player_id !== player.player_id) ?? [];
+      if (others.length > 0) setTarget(t => t ?? others[0].player_id);
+    } catch { setErr("Server unreachable."); }
+  }, [api, gameId, player.player_id]);
+
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 3000);
+    return () => clearInterval(t);
+  }, [refresh]);
+
+  const handleFire = async (r, c) => {
+    if (!targetId) { setErr("Select a target player first."); return; }
+    setFiring(true); setErr(""); setNotice("");
+    try {
+      const res = await api.fireShot(gameId, player.player_id, r, c);
+      setNotice(`(${r}, ${c}) — ${(res.result || "fired").toUpperCase()}!`);
+      await refresh();
+    } catch (e) {
+      const msg = e.message || e.error_message || "";
+      if (msg.toLowerCase().includes("turn"))    setErr("Not your turn yet.");
+      else if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("fired")) setErr("Already fired at that cell.");
+      else setErr(msg || "Cannot fire right now.");
+    } finally { setFiring(false); }
+  };
+
+  if (!game) return <div className="page text-sm text-muted">Loading game #{gameId}…</div>;
+
+  const myTurn    = game.current_turn_player_id === player.player_id;
+  const isWaiting = game.status === "waiting_setup";
+  const isDone    = game.status === "finished";
+  const gridSize  = game.grid_size;
+  const opponents = game.players?.filter(p => p.player_id !== player.player_id) ?? [];
+  const meInGame  = game.players?.find(p => p.player_id === player.player_id);
+
+  // Build shot maps
+  const myShots = {};
+  for (const m of moves) {
+    if (m.player_id === player.player_id && m.target_player_id === targetId) {
+      myShots[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
+    }
+  }
+
+  // Shots fired AT me
+  const incomingShots = {};
+  for (const m of moves) {
+    if (m.player_id !== player.player_id && m.target_player_id === player.player_id) {
+      incomingShots[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
+    }
+  }
+
+  return (
+    <div className="page">
+      {/* Header */}
+      <div className="flex gap-8 mb-16 flex-wrap" style={{ alignItems: "center" }}>
+        <button className="btn btn-sm" onClick={onBack}>← Lobby</button>
+        <span className="fw-bold" style={{ fontSize: 14 }}>Game #{gameId}</span>
+        <span className={`badge ${statusBadge(game.status)} ${game.status === "playing" ? "pulse" : ""}`}>
+          {statusLabel(game.status)}
+        </span>
+        {myTurn && !isWaiting && !isDone && <span className="badge badge-turn">YOUR TURN ▶</span>}
+        <div className="ml-auto flex gap-8">
+          <button className="btn btn-sm" onClick={() => setStats(true)}>Stats</button>
+        </div>
+      </div>
+
+      <Alert type="error" msg={err} onClose={() => setErr("")} />
+      {notice && <Alert type="success" msg={`Shot: ${notice}`} onClose={() => setNotice("")} />}
+
+      {/* Winner */}
+      {isDone && (
+        <div className="winner-banner mb-16">
+          <div className="winner-text">
+            {game.winner_id === player.player_id
+              ? "🏆 You Win!"
+              : `Player #${game.winner_id} Wins!`}
+          </div>
+        </div>
+      )}
+
+      {/* Setup: place ships */}
+      {isWaiting && !placed && meInGame && (
+        <div className="card mb-16">
+          <PlaceShips gameId={gameId} player={player} api={api} gridSize={gridSize}
+            onPlaced={() => { setPlaced(true); refresh(); }} />
+        </div>
+      )}
+      {isWaiting && placed && (
+        <div className="card mb-16 text-sm text-muted">
+          ✓ Ships placed! Waiting for all players to be ready… (auto-refreshing)
+        </div>
+      )}
+      {isWaiting && !meInGame && (
+        <div className="card mb-16 text-sm text-muted">You are observing this game.</div>
+      )}
+
+      {/* Playing */}
+      {!isWaiting && (
+        <div className="boards mb-16">
+          {/* My board */}
+          <div className="board-panel">
+            <div className="section-title">Your Board</div>
+            <div className="card">
+              <Grid size={gridSize} states={incomingShots} />
+              <div className="text-xs text-muted mt-8">
+                Ships remaining: {meInGame?.ships_remaining ?? "?"}
+              </div>
+            </div>
+          </div>
+
+          {/* Targeting */}
+          <div className="board-panel" style={{ flex: 2 }}>
+            <div className="flex gap-8 flex-wrap mb-8" style={{ alignItems: "center" }}>
+              <div className="section-title" style={{ margin: 0 }}>Fire At:</div>
+              {opponents.map(op => (
+                <button
+                  key={op.player_id}
+                  className={`btn btn-sm ${targetId === op.player_id ? "btn-primary" : ""}`}
+                  onClick={() => setTarget(op.player_id)}
+                >
+                  #{op.player_id} ({op.ships_remaining} ▪)
+                </button>
+              ))}
+            </div>
+            <div className="card">
+              {targetId ? (
+                <>
+                  <div className="text-xs text-muted mb-8">
+                    Target: Player #{targetId} ·
+                    {myTurn && !isDone
+                      ? " Click a cell to fire!"
+                      : isDone ? " Game over." : " Wait for your turn."}
+                  </div>
+                  <div className="legend mb-8">
+                    <div className="legend-item"><div className="legend-dot" style={{ background: "#D85A30" }}></div>Hit</div>
+                    <div className="legend-item"><div className="legend-dot" style={{ background: "#378ADD" }}></div>Miss</div>
+                    <div className="legend-item"><div className="legend-dot" style={{ background: "#eeece7", border: "0.5px solid #ccc" }}></div>Unknown</div>
+                  </div>
+                  <Grid
+                    size={gridSize}
+                    states={myShots}
+                    onCell={handleFire}
+                    clickable={myTurn && !isDone && !firing}
+                  />
+                </>
+              ) : (
+                <div className="text-sm text-muted">Select a target player above.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* All opponents summary */}
+      {!isWaiting && opponents.length > 0 && (
+        <div className="mb-16">
+          <div className="section-title">Players</div>
+          <div className="flex gap-8 flex-wrap">
+            {game.players?.map(p => {
+              const isMe = p.player_id === player.player_id;
+              const isTurn = game.current_turn_player_id === p.player_id;
+              return (
+                <div key={p.player_id} className="surface" style={{ minWidth: 120 }}>
+                  <div className="flex gap-8" style={{ alignItems: "center" }}>
+                    <div className="avatar" style={{ width: 24, height: 24, fontSize: 10 }}>
+                      {String(p.player_id).slice(0, 2)}
+                    </div>
+                    <div>
+                      <div className="text-xs fw-bold">#{p.player_id}{isMe ? " (you)" : ""}</div>
+                      <div className="text-xs text-muted">{p.ships_remaining} ships left</div>
+                    </div>
+                    {isTurn && <span className="badge badge-turn" style={{ marginLeft: "auto" }}>▶</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Move log */}
+      <div className="section-title">Move History ({moves.length})</div>
+      <div className="card">
+        <div className="move-log">
+          {moves.length === 0 && <div className="text-sm text-muted">No moves yet.</div>}
+          {[...moves].reverse().map((m, i) => (
+            <div key={i} className="move-row">
+              <span className="move-time">{fmtTime(m.created_at)}</span>
+              <span>P#{m.player_id}</span>
+              <span className="text-muted">→</span>
+              {m.target_player_id && <span>P#{m.target_player_id}</span>}
+              <span className="text-muted">({m.row},{m.col})</span>
+              <span className={`badge ${m.result === "hit" ? "badge-hit" : "badge-miss"}`}>
+                {m.result?.toUpperCase()}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showStats && <StatsModal player={player} api={api} onClose={() => setStats(false)} />}
+    </div>
+  );
+}
+
+// ── App Shell ─────────────────────────────────────────────────────────────────
+function App() {
+  const [player, setPlayer]       = useLocalStorage("bs_player", null);
+  const [server, setServer]       = useLocalStorage("bs_server", window.location.origin);
+  const [myGameIds, setMyGames]   = useLocalStorage("bs_games", []);
+  const [tab, setTab]             = useState("lobby");
+
+  const api = makeApi(server);
+
+  const openGame = (id) => {
+    setMyGames(prev => prev.includes(id) ? prev : [...prev, id]);
+    setTab(`game:${id}`);
+  };
+
+  const handleRegister = (p, srv) => {
+    setPlayer(p);
+    setServer(srv);
+  };
+
+  const logout = () => {
+    setPlayer(null);
+    setMyGames([]);
+    setTab("lobby");
+    localStorage.clear();
+  };
+
+  if (!player) return <RegisterPage onRegister={handleRegister} />;
+
+  const activeGameId = tab.startsWith("game:") ? parseInt(tab.split(":")[1]) : null;
+
+  return (
+    <div>
+      <nav className="nav">
+        <div className="logo"><span className="logo-icon">⊕</span> BATTLESHIP</div>
+        <button className={`btn btn-sm btn-tab ${tab === "lobby" ? "active" : ""}`} onClick={() => setTab("lobby")}>Lobby</button>
+        {myGameIds.map(id => (
+          <button key={id} className={`btn btn-sm btn-tab ${tab === `game:${id}` ? "active" : ""}`} onClick={() => setTab(`game:${id}`)}>
+            #{id}
+          </button>
+        ))}
+        <div className="nav-spacer" />
+        <div className="user-chip">
+          <div className="avatar">{initials(player.username)}</div>
+          <span>{player.username}</span>
+          <button className="btn btn-sm" onClick={logout}>Logout</button>
+        </div>
+      </nav>
+
+      {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} />}
+      {activeGameId && (
+        <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
