@@ -40,18 +40,35 @@ if (isset($segments[0]) && $segments[0] === 'players') {
         createPlayer(); exit;
     }
     if ($method === 'GET' && isset($segments[1]) && is_numeric($segments[1]) && isset($segments[2]) && $segments[2] === 'stats') {
-        getPlayer((int)$segments[1]); exit;
+        $pid = (int)$segments[1];
+        if ($pid <= 0) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Player not found']);
+            exit;
+        }
+        getPlayer($pid); exit;
     }
 }
 
 // --- Test / Autograder Endpoints ---
 // Must be checked BEFORE game endpoints so /api/test/games/... isn't caught by the games block.
 if (isset($segments[0]) && $segments[0] === 'test') {
-    // Direct retrieval is more reliable on Render/Apache
-    $allHeaders = array_change_key_case(getallheaders(), CASE_LOWER);
-    $password = $allHeaders['x-test-password'] ?? $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    // Try multiple ways to get the header — Apache/Render may vary
+    $password = '';
+    if (function_exists('getallheaders')) {
+        $hdrs = getallheaders();
+        foreach ($hdrs as $k => $v) {
+            if (strtolower($k) === 'x-test-password') {
+                $password = $v;
+                break;
+            }
+        }
+    }
+    if ($password === '') {
+        $password = $_SERVER['HTTP_X_TEST_PASSWORD'] ?? '';
+    }
 
-    if (empty($password) || $password !== 'clemson-test-2026') {
+    if ($password !== 'clemson-test-2026') {
         http_response_code(403);
         echo json_encode(['error' => 'forbidden', 'message' => 'Access denied']);
         exit;
@@ -90,6 +107,12 @@ if (isset($segments[0]) && $segments[0] === 'games') {
     }
     if (isset($segments[1]) && is_numeric($segments[1])) {
         $gameId = (int)$segments[1];
+
+        if ($gameId <= 0) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
+            exit;
+        }
 
         if ($method === 'GET' && count($segments) === 2) {
             getGame($gameId); exit;
