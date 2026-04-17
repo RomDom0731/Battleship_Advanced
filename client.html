@@ -300,41 +300,87 @@ function Grid({ size, states = {}, onCell, clickable }) {
   );
 }
 
-// ── Register ──────────────────────────────────────────────────────────────────
+// ── Auth Page (Register + Sign In) ───────────────────────────────────────────
 function RegisterPage({ onRegister }) {
-  const [server, setServer] = useLocalStorage("bs_server", window.location.origin);
+  const [server, setServer]   = useLocalStorage("bs_server", window.location.origin);
   const [username, setUsername] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [busy, setBusy]       = useState(false);
+  const [err, setErr]         = useState("");
+  const [mode, setMode]       = useState("login"); // "login" | "register"
 
-  const submit = async () => {
+  const handleSubmit = async () => {
     if (!username.trim()) { setErr("Username is required."); return; }
     if (!server.trim())   { setErr("Server URL is required."); return; }
     setBusy(true); setErr("");
-    try {
-      const api = makeApi(server.trim());
-      const res = await api.createPlayer(username.trim());
-      onRegister({ player_id: res.player_id, username: username.trim() }, server.trim());
-    } catch (e) {
-      const msg = e.message || e.error_message || e.error || "";
-      if (typeof msg === "string" && msg.toLowerCase().includes("taken")) {
-        setErr("Username already taken. Try another.");
-      } else if (!msg) {
-        setErr("Cannot reach server. Check the URL and CORS headers.");
-      } else {
-        setErr(msg || "Registration failed.");
+    const api = makeApi(server.trim());
+    const uname = username.trim();
+
+    if (mode === "register") {
+      // Create a new account
+      try {
+        const res = await api.createPlayer(uname);
+        onRegister({ player_id: res.player_id, username: uname }, server.trim());
+      } catch (e) {
+        const msg = (e.message || e.error_message || e.error || "").toLowerCase();
+        if (msg.includes("taken") || msg.includes("conflict") || e.status === 409) {
+          setErr("Username already taken. Try a different name, or sign in instead.");
+        } else if (!msg) {
+          setErr("Cannot reach server. Check the URL.");
+        } else {
+          setErr(e.message || e.error_message || "Registration failed.");
+        }
       }
-    } finally { setBusy(false); }
+    } else {
+      // Sign in — look up the username from the players list
+      try {
+        const players = await api.getPlayers();
+        const list = Array.isArray(players) ? players : [];
+        const found = list.find(p => p.username.toLowerCase() === uname.toLowerCase());
+        if (!found) {
+          setErr("No account found with that username. Check spelling or register a new account.");
+        } else {
+          onRegister({ player_id: found.player_id, username: found.username }, server.trim());
+        }
+      } catch (e) {
+        setErr("Cannot reach server. Check the URL.");
+      }
+    }
+    setBusy(false);
   };
 
   return (
     <div style={{ maxWidth: 420, margin: "3rem auto", padding: "0 1rem" }}>
       <div className="card">
+        {/* Title */}
         <div className="mb-16">
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 4 }}>⊕ BATTLESHIP</div>
-          <div className="text-sm text-muted">Configure your server and register to play.</div>
+          <div className="text-sm text-muted">
+            {mode === "login" ? "Sign in to your existing account." : "Create a new account to play."}
+          </div>
         </div>
 
+        {/* Tab switcher */}
+        <div style={{ display: "flex", background: "#f0ede8", borderRadius: 10, padding: 3, marginBottom: 20, gap: 3 }}>
+          {["login", "register"].map(m => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); setErr(""); }}
+              style={{
+                flex: 1, border: "none", borderRadius: 8, padding: "7px 0",
+                fontSize: 12, fontFamily: "inherit", fontWeight: 700,
+                letterSpacing: "0.06em", cursor: "pointer",
+                background: mode === m ? "#fff" : "transparent",
+                color: mode === m ? "#1a1a1a" : "#888",
+                boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                transition: "all .15s",
+              }}
+            >
+              {m === "login" ? "Sign In" : "Register"}
+            </button>
+          ))}
+        </div>
+
+        {/* Server URL */}
         <div className="field">
           <label>Server URL</label>
           <input
@@ -345,24 +391,40 @@ function RegisterPage({ onRegister }) {
           />
         </div>
 
+        {/* Username */}
         <div className="field">
           <label>Username</label>
           <input
             type="text"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && submit()}
+            onKeyDown={e => e.key === "Enter" && handleSubmit()}
             placeholder="alphanumeric_only"
             maxLength={30}
           />
-          <div className="text-xs text-muted mt-8">Letters, numbers, underscores. Max 30 chars.</div>
+          {mode === "register" && (
+            <div className="text-xs text-muted mt-8">Letters, numbers, underscores. Max 30 chars.</div>
+          )}
+          {mode === "login" && (
+            <div className="text-xs text-muted mt-8">Enter the username you registered with.</div>
+          )}
         </div>
 
         <Alert type="error" msg={err} onClose={() => setErr("")} />
 
-        <button className="btn btn-primary w-full" onClick={submit} disabled={busy}>
-          {busy ? "Registering…" : "Register & Play →"}
+        <button className="btn btn-primary w-full" onClick={handleSubmit} disabled={busy}>
+          {busy
+            ? (mode === "login" ? "Signing in…" : "Registering…")
+            : (mode === "login" ? "Sign In →" : "Create Account →")}
         </button>
+
+        {/* Hint to switch modes */}
+        <div className="text-xs text-muted text-center" style={{ marginTop: 14 }}>
+          {mode === "login"
+            ? <>No account yet? <button onClick={() => { setMode("register"); setErr(""); }} style={{ background:"none", border:"none", color:"#1D9E75", cursor:"pointer", fontFamily:"inherit", fontSize:"inherit", fontWeight:700 }}>Register</button></>
+            : <>Already have an account? <button onClick={() => { setMode("login"); setErr(""); }} style={{ background:"none", border:"none", color:"#1D9E75", cursor:"pointer", fontFamily:"inherit", fontSize:"inherit", fontWeight:700 }}>Sign In</button></>
+          }
+        </div>
       </div>
     </div>
   );
