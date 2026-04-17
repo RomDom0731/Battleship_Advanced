@@ -244,6 +244,7 @@ function makeApi(base) {
   }
   return {
     createPlayer: (username)              => call("POST", "/players", { username }),
+    getPlayers:   ()                       => call("GET",  "/players"),
     getStats:     (id)                    => call("GET",  `/players/${id}/stats`),
     getGames:     ()                      => call("GET",  "/games"),
     getGame:      (id)                    => call("GET",  `/games/${id}`),
