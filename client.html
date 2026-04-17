@@ -431,31 +431,100 @@ function RegisterPage({ onRegister }) {
   );
 }
 
+// ── Player Stats Row ─────────────────────────────────────────────────────────
+function PlayerStatsRow({ p, api, isMe }) {
+  const [stats, setStats]   = useState(null);
+  const [open, setOpen]     = useState(false);
+  const [loading, setLoad]  = useState(false);
+
+  const toggle = async () => {
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    if (stats) return; // already loaded
+    setLoad(true);
+    try {
+      const s = await api.getStats(p.player_id);
+      setStats(s);
+    } catch { setStats(null); }
+    finally { setLoad(false); }
+  };
+
+  return (
+    <div style={{ borderBottom: "0.5px solid var(--color-border-tertiary, #eee)" }}>
+      <div
+        onClick={toggle}
+        style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", cursor:"pointer" }}
+      >
+        <div className="avatar" style={{ width:28, height:28, fontSize:11, flexShrink:0 }}>
+          {initials(p.username)}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div className="text-xs fw-bold" style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {p.username}{isMe ? " (you)" : ""}
+          </div>
+        </div>
+        {stats && (
+          <div style={{ display:"flex", gap:12, fontSize:11, color:"#888" }}>
+            <span>{stats.wins}W · {stats.losses}L</span>
+            <span>{fmtAcc(stats.accuracy)}</span>
+          </div>
+        )}
+        <span style={{ fontSize:11, color:"#aaa", flexShrink:0 }}>{open ? "▲" : "▼"}</span>
+      </div>
+
+      {open && (
+        <div style={{ paddingBottom:12, paddingLeft:38 }}>
+          {loading && <div className="text-xs text-muted">Loading…</div>}
+          {!loading && !stats && <div className="text-xs text-muted">Could not load stats.</div>}
+          {!loading && stats && (
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {[
+                ["Games",    stats.games_played],
+                ["Wins",     stats.wins],
+                ["Losses",   stats.losses],
+                ["Shots",    stats.total_shots],
+                ["Hits",     stats.total_hits],
+                ["Accuracy", fmtAcc(stats.accuracy)],
+              ].map(([label, val]) => (
+                <div key={label} style={{ background:"var(--color-background-secondary,#f0ede8)", borderRadius:6, padding:"6px 10px", minWidth:60 }}>
+                  <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.07em", color:"#888", marginBottom:2 }}>{label}</div>
+                  <div style={{ fontSize:16, fontWeight:700 }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Lobby ─────────────────────────────────────────────────────────────────────
 function Lobby({ player, api, myGameIds, onOpenGame }) {
   const [games, setGames]       = useState([]);
+  const [players, setPlayers]   = useState([]);
   const [err, setErr]           = useState("");
   const [showCreate, setShow]   = useState(false);
+  const [lobbyTab, setLobbyTab] = useState("games"); // "games" | "players"
   const [gridSize, setGrid]     = useState(10);
   const [maxP, setMaxP]         = useState(2);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining]   = useState(null);
-  const creatingRef             = useRef(false); // hard guard against double-fire
+  const creatingRef             = useRef(false);
 
   const load = useCallback(async () => {
     try {
-      const raw = await api.getGames();
-      // Guard: server should return a bare array but normalise just in case
+      const [raw, rawPlayers] = await Promise.all([api.getGames(), api.getPlayers()]);
       const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []);
       const details = await Promise.allSettled(list.map(g => api.getGame(g.game_id)));
       setGames(details.map((r, i) => r.status === "fulfilled" ? r.value : list[i]));
+      setPlayers(Array.isArray(rawPlayers) ? rawPlayers : []);
     } catch { setErr("Cannot reach server. Check your server URL."); }
   }, [api]);
 
   useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
 
   const handleCreate = async () => {
-    // Ref guard: if already in flight, ignore every subsequent call
     if (creatingRef.current) return;
     creatingRef.current = true;
     setCreating(true); setErr("");
@@ -480,21 +549,28 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
     } finally { setJoining(null); }
   };
 
+  // Sort players: most wins first
+  const sortedPlayers = [...players].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+
   return (
     <div className="page">
+      {/* Header row */}
       <div className="flex gap-8 mb-16" style={{ alignItems: "center" }}>
-        <div className="section-title" style={{ margin: 0 }}>Game Lobby</div>
+        <div className="section-title" style={{ margin: 0 }}>Lobby</div>
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={load}>↻</button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShow(v => !v)}>+ New Game</button>
+          {lobbyTab === "games" && (
+            <button className="btn btn-primary btn-sm" onClick={() => setShow(v => !v)}>+ New Game</button>
+          )}
         </div>
       </div>
 
       <Alert type="error" msg={err} onClose={() => setErr("")} />
 
+      {/* Active games shortcut */}
       {myGameIds.length > 0 && (
         <div className="mb-16">
-          <div className="text-xs text-muted mb-8">YOUR GAMES</div>
+          <div className="text-xs text-muted mb-8">YOUR ACTIVE GAMES</div>
           <div className="flex gap-8 flex-wrap">
             {myGameIds.map(id => (
               <button key={id} className="btn btn-primary btn-sm" onClick={() => onOpenGame(id)}>→ Game #{id}</button>
@@ -503,54 +579,84 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
         </div>
       )}
 
-      {showCreate && (
-        <div className="card mb-16">
-          <div className="section-title">New Game</div>
-          <div className="flex gap-16 flex-wrap mb-12">
-            <div className="flex-1" style={{ minWidth: 120 }}>
-              <div className="text-xs text-muted mb-8">Grid Size: {gridSize}×{gridSize}</div>
-              <input type="range" min={5} max={15} value={gridSize} onChange={e => setGrid(+e.target.value)} />
-            </div>
-            <div className="flex-1" style={{ minWidth: 120 }}>
-              <div className="text-xs text-muted mb-8">Max Players: {maxP}</div>
-              <input type="range" min={2} max={10} value={maxP} onChange={e => setMaxP(+e.target.value)} />
-            </div>
-          </div>
-          <button className="btn btn-primary" onClick={handleCreate} disabled={creating}>
-            {creating ? "Creating…" : `Create ${gridSize}×${gridSize} · ${maxP}P`}
-          </button>
-        </div>
-      )}
+      {/* Tab switcher */}
+      <div style={{ display:"flex", background:"#f0ede8", borderRadius:10, padding:3, marginBottom:16, gap:3 }}>
+        {[["games","Games"], ["players","Players"]].map(([key, label]) => (
+          <button key={key} onClick={() => setLobbyTab(key)} style={{
+            flex:1, border:"none", borderRadius:8, padding:"6px 0",
+            fontSize:12, fontFamily:"inherit", fontWeight:700,
+            letterSpacing:"0.06em", cursor:"pointer",
+            background: lobbyTab === key ? "#fff" : "transparent",
+            color: lobbyTab === key ? "#1a1a1a" : "#888",
+            boxShadow: lobbyTab === key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            transition:"all .15s",
+          }}>{label} {key === "games" ? `(${games.length})` : `(${players.length})`}</button>
+        ))}
+      </div>
 
-      <div className="flex" style={{ flexDirection: "column", gap: 8 }}>
-        {games.length === 0 && (
-          <div className="card text-sm text-muted">No games found. Create one to get started!</div>
-        )}
-        {games.map(g => {
-          const inGame = myGameIds.includes(g.game_id);
-          const open   = g.status === "waiting_setup";
-          const count  = g.players?.length ?? "?";
-          return (
-            <div key={g.game_id} className="card game-row">
-              <div className="game-info">
-                <div className="game-title">Game #{g.game_id}</div>
-                <div className="game-meta">
-                  {g.grid_size}×{g.grid_size} · {count} player{count !== 1 ? "s" : ""} · {g.total_moves ?? 0} moves
+      {/* Games tab */}
+      {lobbyTab === "games" && (
+        <>
+          {showCreate && (
+            <div className="card mb-16">
+              <div className="section-title">New Game</div>
+              <div className="flex gap-16 flex-wrap mb-12">
+                <div className="flex-1" style={{ minWidth: 120 }}>
+                  <div className="text-xs text-muted mb-8">Grid Size: {gridSize}×{gridSize}</div>
+                  <input type="range" min={5} max={15} value={gridSize} onChange={e => setGrid(+e.target.value)} />
+                </div>
+                <div className="flex-1" style={{ minWidth: 120 }}>
+                  <div className="text-xs text-muted mb-8">Max Players: {maxP}</div>
+                  <input type="range" min={2} max={10} value={maxP} onChange={e => setMaxP(+e.target.value)} />
                 </div>
               </div>
-              <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
-              {inGame && <span className="badge badge-joined">JOINED</span>}
-              {inGame
-                ? <button className="btn btn-primary btn-sm" onClick={() => onOpenGame(g.game_id)}>Open →</button>
-                : open
-                  ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>
-                      {joining === g.game_id ? "…" : "Join"}
-                    </button>
-                  : <button className="btn btn-sm" disabled>Closed</button>}
+              <button className="btn btn-primary" onClick={handleCreate} disabled={creating}>
+                {creating ? "Creating…" : `Create ${gridSize}×${gridSize} · ${maxP}P`}
+              </button>
             </div>
-          );
-        })}
-      </div>
+          )}
+
+          <div className="flex" style={{ flexDirection:"column", gap:8 }}>
+            {games.length === 0 && (
+              <div className="card text-sm text-muted">No games yet. Create one to get started!</div>
+            )}
+            {games.map(g => {
+              const inGame = myGameIds.includes(g.game_id);
+              const open   = g.status === "waiting_setup";
+              const count  = g.players?.length ?? "?";
+              return (
+                <div key={g.game_id} className="card game-row">
+                  <div className="game-info">
+                    <div className="game-title">Game #{g.game_id}</div>
+                    <div className="game-meta">
+                      {g.grid_size}×{g.grid_size} · {count} player{count !== 1 ? "s" : ""} · {g.total_moves ?? 0} moves
+                    </div>
+                  </div>
+                  <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
+                  {inGame && <span className="badge badge-joined">JOINED</span>}
+                  {inGame
+                    ? <button className="btn btn-primary btn-sm" onClick={() => onOpenGame(g.game_id)}>Open →</button>
+                    : open
+                      ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>
+                          {joining === g.game_id ? "…" : "Join"}
+                        </button>
+                      : <button className="btn btn-sm" disabled>Closed</button>}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* Players tab */}
+      {lobbyTab === "players" && (
+        <div className="card">
+          {players.length === 0 && <div className="text-sm text-muted">No players registered yet.</div>}
+          {sortedPlayers.map(p => (
+            <PlayerStatsRow key={p.player_id} p={p} api={api} isMe={p.player_id === player.player_id} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
