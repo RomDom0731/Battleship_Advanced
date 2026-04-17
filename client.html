@@ -574,20 +574,32 @@ function StatsModal({ player, api, onClose }) {
 
 // ── Game ──────────────────────────────────────────────────────────────────────
 function GamePage({ gameId, player, api, onBack }) {
-  const [game, setGame]       = useState(null);
-  const [moves, setMoves]     = useState([]);
-  const [placed, setPlaced]   = useState(false);
-  const [targetId, setTarget] = useState(null);
-  const [firing, setFiring]   = useState(false);
-  const [err, setErr]         = useState("");
-  const [notice, setNotice]   = useState("");
-  const [showStats, setStats] = useState(false);
-  const firingRef             = useRef(false); // hard guard against double-shots
+  const [game, setGame]           = useState(null);
+  const [moves, setMoves]         = useState([]);
+  const [placed, setPlaced]       = useState(false);
+  const [targetId, setTarget]     = useState(null);
+  const [firing, setFiring]       = useState(false);
+  const [err, setErr]             = useState("");
+  const [notice, setNotice]       = useState("");
+  const [showStats, setStats]     = useState(false);
+  const [playerNames, setNames]   = useState({}); // player_id -> username
+  const firingRef                 = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [g, m] = await Promise.all([api.getGame(gameId), api.getMoves(gameId)]);
+      const [g, m, allPlayers] = await Promise.all([
+        api.getGame(gameId),
+        api.getMoves(gameId),
+        api.getPlayers(),
+      ]);
       setGame(g);
+      // Build id->username map from the full players list
+      const names = {};
+      const playerList = Array.isArray(allPlayers) ? allPlayers : [];
+      for (const p of playerList) names[p.player_id] = p.username;
+      // Also ensure the current user is in the map
+      names[player.player_id] = player.username;
+      setNames(names);
       // Server returns { game_id, moves: [...] } not a bare array — unwrap it
       const moveList = Array.isArray(m) ? m : (Array.isArray(m?.moves) ? m.moves : []);
       setMoves(moveList);
@@ -595,7 +607,7 @@ function GamePage({ gameId, player, api, onBack }) {
       const others = (g.players || []).filter(p => p.player_id !== player.player_id);
       if (others.length > 0) setTarget(t => t ?? others[0].player_id);
     } catch { setErr("Server unreachable."); }
-  }, [api, gameId, player.player_id]);
+  }, [api, gameId, player.player_id, player.username]);
 
   useEffect(() => {
     refresh();
@@ -680,7 +692,7 @@ function GamePage({ gameId, player, api, onBack }) {
           <div className="winner-text">
             {game.winner_id === player.player_id
               ? "🏆 You Win!"
-              : `Player #${game.winner_id} Wins!`}
+              : `🏆 ${playerNames[game.winner_id] || `Player #${game.winner_id}`} Wins!`}
           </div>
         </div>
       )}
@@ -725,7 +737,7 @@ function GamePage({ gameId, player, api, onBack }) {
                   className={`btn btn-sm ${targetId === op.player_id ? "btn-primary" : ""}`}
                   onClick={() => setTarget(op.player_id)}
                 >
-                  #{op.player_id} ({op.ships_remaining} ▪)
+                  {playerNames[op.player_id] || `#${op.player_id}`} ({op.ships_remaining} ▪)
                 </button>
               ))}
             </div>
@@ -733,7 +745,7 @@ function GamePage({ gameId, player, api, onBack }) {
               {targetId ? (
                 <>
                   <div className="text-xs text-muted mb-8">
-                    Target: Player #{targetId} ·
+                    Target: {playerNames[targetId] || `Player #${targetId}`} ·
                     {myTurn && !isDone
                       ? " Click a cell to fire!"
                       : isDone ? " Game over." : " Wait for your turn."}
@@ -764,19 +776,22 @@ function GamePage({ gameId, player, api, onBack }) {
           <div className="section-title">Players</div>
           <div className="flex gap-8 flex-wrap">
             {game.players?.map(p => {
-              const isMe = p.player_id === player.player_id;
+              const isMe   = p.player_id === player.player_id;
               const isTurn = game.current_turn_player_id === p.player_id;
+              const name   = playerNames[p.player_id] || `#${p.player_id}`;
               return (
-                <div key={p.player_id} className="surface" style={{ minWidth: 120 }}>
+                <div key={p.player_id} className="surface" style={{ minWidth: 130 }}>
                   <div className="flex gap-8" style={{ alignItems: "center" }}>
-                    <div className="avatar" style={{ width: 24, height: 24, fontSize: 10 }}>
-                      {String(p.player_id).slice(0, 2)}
+                    <div className="avatar" style={{ width: 26, height: 26, fontSize: 10 }}>
+                      {initials(name)}
                     </div>
-                    <div>
-                      <div className="text-xs fw-bold">#{p.player_id}{isMe ? " (you)" : ""}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="text-xs fw-bold" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {name}{isMe ? " (you)" : ""}
+                      </div>
                       <div className="text-xs text-muted">{p.ships_remaining} ships left</div>
                     </div>
-                    {isTurn && <span className="badge badge-turn" style={{ marginLeft: "auto" }}>▶</span>}
+                    {isTurn && <span className="badge badge-turn">▶</span>}
                   </div>
                 </div>
               );
@@ -793,7 +808,7 @@ function GamePage({ gameId, player, api, onBack }) {
           {[...moves].reverse().map((m, i) => (
             <div key={i} className="move-row">
               <span className="move-time">{fmtTime(m.timestamp || m.created_at)}</span>
-              <span>P#{m.player_id}</span>
+              <span>{playerNames[m.player_id] || `P#${m.player_id}`}</span>
               <span className="text-muted">fired ({m.row},{m.col})</span>
               <span className={`badge ${m.result === "hit" ? "badge-hit" : "badge-miss"}`}>
                 {(m.result || "").toUpperCase()}
