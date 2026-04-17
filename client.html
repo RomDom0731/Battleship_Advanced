@@ -513,17 +513,16 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
   const creatingRef             = useRef(false);
 
   const load = useCallback(async () => {
-    // Run games and players independently so one failure doesn't wipe both
+    // Only 2 requests total — no per-game detail fetches.
+    // The list endpoints give us everything the lobby needs.
     const [gamesResult, playersResult] = await Promise.allSettled([
       api.getGames(),
       api.getPlayers(),
     ]);
 
     if (gamesResult.status === "fulfilled") {
-      const raw  = gamesResult.value;
-      const list = Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []);
-      const details = await Promise.allSettled(list.map(g => api.getGame(g.game_id)));
-      setGames(details.map((r, i) => r.status === "fulfilled" ? r.value : list[i]));
+      const raw = gamesResult.value;
+      setGames(Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []));
     } else {
       setErr("Cannot reach server. Check your server URL.");
     }
@@ -534,7 +533,8 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
     }
   }, [api]);
 
-  useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
+  // Poll every 6s — lobby doesn't need to be as snappy as an active game
+  useEffect(() => { load(); const t = setInterval(load, 6000); return () => clearInterval(t); }, [load]);
 
   const handleCreate = async () => {
     if (creatingRef.current) return;
@@ -635,14 +635,10 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
             {games.map(g => {
               const inGame = myGameIds.includes(g.game_id);
               const open   = g.status === "waiting_setup";
-              const count  = g.players?.length ?? "?";
               return (
                 <div key={g.game_id} className="card game-row">
                   <div className="game-info">
                     <div className="game-title">Game #{g.game_id}</div>
-                    <div className="game-meta">
-                      {g.grid_size}×{g.grid_size} · {count} player{count !== 1 ? "s" : ""} · {g.total_moves ?? 0} moves
-                    </div>
                   </div>
                   <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
                   {inGame && <span className="badge badge-joined">JOINED</span>}

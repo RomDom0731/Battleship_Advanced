@@ -808,7 +808,7 @@ function getHealth(): void {
     echo json_encode(['status' => 'ok']);
 }
 
-/*
+
 function resetSystem(): void {
     try {
         $db = getDB();
@@ -820,7 +820,7 @@ function resetSystem(): void {
         echo json_encode(['error' => 'server_error', 'message' => $e->getMessage()]);
     }
 }
-*/
+
 
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
