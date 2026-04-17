@@ -772,6 +772,9 @@ function getGameMoves(int $gameId): void {
 
         $moves = [];
         foreach ($rows as $i => $m) {
+            // Append 'Z' to mark as UTC so the browser converts to local time correctly.
+            // PostgreSQL stores CURRENT_TIMESTAMP in UTC but omits the timezone suffix.
+            $ts = $m['timestamp'] ? str_replace(' ', 'T', $m['timestamp']) . 'Z' : null;
             $moves[] = [
                 'move_number' => $i + 1,
                 'game_id'     => $gameId,
@@ -779,7 +782,7 @@ function getGameMoves(int $gameId): void {
                 'row'         => (int)$m['row'],
                 'col'         => (int)$m['col'],
                 'result'      => $m['result'],
-                'timestamp'   => $m['timestamp'],
+                'timestamp'   => $ts,
             ];
         }
 
