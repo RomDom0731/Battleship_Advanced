@@ -377,6 +377,7 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
   const [maxP, setMaxP]         = useState(2);
   const [creating, setCreating] = useState(false);
   const [joining, setJoining]   = useState(null);
+  const creatingRef             = useRef(false); // hard guard against double-fire
 
   const load = useCallback(async () => {
     try {
@@ -389,13 +390,17 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
   useEffect(() => { load(); const t = setInterval(load, 4000); return () => clearInterval(t); }, [load]);
 
   const handleCreate = async () => {
+    // Ref guard: if already in flight, ignore every subsequent call
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setCreating(true); setErr("");
     try {
       const g = await api.createGame({ creator_id: player.player_id, grid_size: gridSize, max_players: maxP });
       await api.joinGame(g.game_id, player.player_id);
+      setShow(false);
       onOpenGame(g.game_id);
     } catch (e) { setErr(e.message || "Failed to create game."); }
-    finally { setCreating(false); }
+    finally { creatingRef.current = false; setCreating(false); }
   };
 
   const handleJoin = async (gameId) => {
@@ -575,15 +580,14 @@ function GamePage({ gameId, player, api, onBack }) {
   const [err, setErr]         = useState("");
   const [notice, setNotice]   = useState("");
   const [showStats, setStats] = useState(false);
+  const firingRef             = useRef(false); // hard guard against double-shots
 
   const refresh = useCallback(async () => {
     try {
       const [g, m] = await Promise.all([api.getGame(gameId), api.getMoves(gameId)]);
       setGame(g);
       setMoves(m);
-      // If the player is in the game and the game is no longer waiting, they must have placed
       if (g.status !== "waiting_setup") setPlaced(true);
-      // Auto-select first opponent
       const others = g.players?.filter(p => p.player_id !== player.player_id) ?? [];
       if (others.length > 0) setTarget(t => t ?? others[0].player_id);
     } catch { setErr("Server unreachable."); }
@@ -596,7 +600,9 @@ function GamePage({ gameId, player, api, onBack }) {
   }, [refresh]);
 
   const handleFire = async (r, c) => {
+    if (firingRef.current) return; // ignore any re-render-triggered calls
     if (!targetId) { setErr("Select a target player first."); return; }
+    firingRef.current = true;
     setFiring(true); setErr(""); setNotice("");
     try {
       const res = await api.fireShot(gameId, player.player_id, r, c);
@@ -607,7 +613,7 @@ function GamePage({ gameId, player, api, onBack }) {
       if (msg.toLowerCase().includes("turn"))    setErr("Not your turn yet.");
       else if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("fired")) setErr("Already fired at that cell.");
       else setErr(msg || "Cannot fire right now.");
-    } finally { setFiring(false); }
+    } finally { firingRef.current = false; setFiring(false); }
   };
 
   if (!game) return <div className="page text-sm text-muted">Loading game #{gameId}…</div>;
@@ -796,7 +802,7 @@ function App() {
   const [myGameIds, setMyGames]   = useLocalStorage("bs_games", []);
   const [tab, setTab]             = useState("lobby");
 
-  const api = makeApi(server);
+  const api = React.useMemo(() => makeApi(server), [server]);
 
   const openGame = (id) => {
     setMyGames(prev => prev.includes(id) ? prev : [...prev, id]);
