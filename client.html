@@ -616,27 +616,29 @@ function GamePage({ gameId, player, api, onBack }) {
     } finally { firingRef.current = false; setFiring(false); }
   };
 
-  if (!game) return <div className="page text-sm text-muted">Loading game #{gameId}…</div>;
+  if (!game || !game.grid_size) return <div className="page text-sm text-muted">Loading game #{gameId}…</div>;
 
   const myTurn    = game.current_turn_player_id === player.player_id;
   const isWaiting = game.status === "waiting_setup";
   const isDone    = game.status === "finished";
-  const gridSize  = game.grid_size;
-  const opponents = game.players?.filter(p => p.player_id !== player.player_id) ?? [];
-  const meInGame  = game.players?.find(p => p.player_id === player.player_id);
+  const gridSize  = game.grid_size || 10;
+  const opponents = (game.players || []).filter(p => p.player_id !== player.player_id);
+  const meInGame  = (game.players || []).find(p => p.player_id === player.player_id);
 
-  // Build shot maps
+  // NOTE: the /moves endpoint returns { player_id, row, col, result, created_at }
+  // There is no target_player_id — all moves in a game are visible to everyone.
+  // We show ALL moves on the target grid (hits/misses fired by me),
+  // and incoming shots on my own board (moves fired by others).
   const myShots = {};
   for (const m of moves) {
-    if (m.player_id === player.player_id && m.target_player_id === targetId) {
+    if (m.player_id === player.player_id) {
       myShots[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
     }
   }
 
-  // Shots fired AT me
   const incomingShots = {};
   for (const m of moves) {
-    if (m.player_id !== player.player_id && m.target_player_id === player.player_id) {
+    if (m.player_id !== player.player_id) {
       incomingShots[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
     }
   }
@@ -779,11 +781,9 @@ function GamePage({ gameId, player, api, onBack }) {
             <div key={i} className="move-row">
               <span className="move-time">{fmtTime(m.created_at)}</span>
               <span>P#{m.player_id}</span>
-              <span className="text-muted">→</span>
-              {m.target_player_id && <span>P#{m.target_player_id}</span>}
-              <span className="text-muted">({m.row},{m.col})</span>
+              <span className="text-muted">fired ({m.row},{m.col})</span>
               <span className={`badge ${m.result === "hit" ? "badge-hit" : "badge-miss"}`}>
-                {m.result?.toUpperCase()}
+                {(m.result || "").toUpperCase()}
               </span>
             </div>
           ))}
@@ -793,6 +793,31 @@ function GamePage({ gameId, player, api, onBack }) {
       {showStats && <StatsModal player={player} api={api} onClose={() => setStats(false)} />}
     </div>
   );
+}
+
+// ── Error Boundary ────────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  render() {
+    if (this.state.err) return (
+      <div style={{ maxWidth: 480, margin: "3rem auto", padding: "0 1rem" }}>
+        <div className="card">
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: "#791f1f" }}>Something went wrong</div>
+          <div className="alert alert-error" style={{ marginBottom: 12 }}>
+            {this.state.err.message || String(this.state.err)}
+          </div>
+          <div className="text-sm text-muted" style={{ marginBottom: 12 }}>
+            This is usually caused by unexpected data from the server. Try refreshing, or go back to the lobby.
+          </div>
+          <button className="btn btn-primary" onClick={() => { this.setState({ err: null }); window.location.reload(); }}>
+            Reload page
+          </button>
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
 }
 
 // ── App Shell ─────────────────────────────────────────────────────────────────
@@ -851,7 +876,7 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
 </body>
 </html>
