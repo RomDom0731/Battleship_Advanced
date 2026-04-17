@@ -770,12 +770,12 @@ function GamePage({ gameId, player, api, onBack }) {
         api.getPlayers(),
       ]);
       setGame(g);
-      // Build id->username map from the full players list
+      // Build id->username map — coerce all keys to strings to avoid int/string mismatch
       const names = {};
       const playerList = Array.isArray(allPlayers) ? allPlayers : [];
-      for (const p of playerList) names[p.player_id] = p.username;
-      // Also ensure the current user is in the map
-      names[player.player_id] = player.username;
+      for (const p of playerList) names[String(p.player_id)] = p.username;
+      // Always ensure the current user is in the map
+      names[String(player.player_id)] = player.username;
       setNames(names);
       // Server returns { game_id, moves: [...] } not a bare array — unwrap it
       const moveList = Array.isArray(m) ? m : (Array.isArray(m?.moves) ? m.moves : []);
@@ -869,7 +869,7 @@ function GamePage({ gameId, player, api, onBack }) {
           <div className="winner-text">
             {game.winner_id === player.player_id
               ? "🏆 You Win!"
-              : `🏆 ${playerNames[game.winner_id] || `Player #${game.winner_id}`} Wins!`}
+              : `🏆 ${playerNames[String(game.winner_id)] || `Player #${game.winner_id}`} Wins!`}
           </div>
         </div>
       )}
@@ -914,7 +914,7 @@ function GamePage({ gameId, player, api, onBack }) {
                   className={`btn btn-sm ${targetId === op.player_id ? "btn-primary" : ""}`}
                   onClick={() => setTarget(op.player_id)}
                 >
-                  {playerNames[op.player_id] || `#${op.player_id}`} ({op.ships_remaining} ▪)
+                  {playerNames[String(op.player_id)] || `#${op.player_id}`} ({op.ships_remaining} ▪)
                 </button>
               ))}
             </div>
@@ -922,7 +922,7 @@ function GamePage({ gameId, player, api, onBack }) {
               {targetId ? (
                 <>
                   <div className="text-xs text-muted mb-8">
-                    Target: {playerNames[targetId] || `Player #${targetId}`} ·
+                    Target: {playerNames[String(targetId)] || `Player #${targetId}`} ·
                     {myTurn && !isDone
                       ? " Click a cell to fire!"
                       : isDone ? " Game over." : " Wait for your turn."}
@@ -955,7 +955,7 @@ function GamePage({ gameId, player, api, onBack }) {
             {game.players?.map(p => {
               const isMe   = p.player_id === player.player_id;
               const isTurn = game.current_turn_player_id === p.player_id;
-              const name   = playerNames[p.player_id] || `#${p.player_id}`;
+              const name   = playerNames[String(p.player_id)] || `#${p.player_id}`;
               return (
                 <div key={p.player_id} className="surface" style={{ minWidth: 130 }}>
                   <div className="flex gap-8" style={{ alignItems: "center" }}>
@@ -985,7 +985,7 @@ function GamePage({ gameId, player, api, onBack }) {
           {[...moves].reverse().map((m, i) => (
             <div key={i} className="move-row">
               <span className="move-time">{fmtTime(m.timestamp || m.created_at)}</span>
-              <span>{playerNames[m.player_id] || `P#${m.player_id}`}</span>
+              <span>{playerNames[String(m.player_id)] || `P#${m.player_id}`}</span>
               <span className="text-muted">fired ({m.row},{m.col})</span>
               <span className={`badge ${m.result === "hit" ? "badge-hit" : "badge-miss"}`}>
                 {(m.result || "").toUpperCase()}
