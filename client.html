@@ -629,10 +629,9 @@ function GamePage({ gameId, player, api, onBack }) {
   const opponents = (game.players || []).filter(p => p.player_id !== player.player_id);
   const meInGame  = (game.players || []).find(p => p.player_id === player.player_id);
 
-  // NOTE: the /moves endpoint returns { player_id, row, col, result, created_at }
-  // There is no target_player_id — all moves in a game are visible to everyone.
-  // We show ALL moves on the target grid (hits/misses fired by me),
-  // and incoming shots on my own board (moves fired by others).
+  // My shots = moves I fired. Show on the attack grid.
+  // Each player fires independently so we only show MY shots on the attack grid —
+  // another player firing at the same coordinate doesn't count as "already shot there" for me.
   const myShots = {};
   for (const m of moves) {
     if (m.player_id === player.player_id) {
@@ -640,10 +639,20 @@ function GamePage({ gameId, player, api, onBack }) {
     }
   }
 
+  // Incoming shots = moves fired by any other player. Show on my own board.
   const incomingShots = {};
   for (const m of moves) {
     if (m.player_id !== player.player_id) {
-      incomingShots[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
+      // Each opponent fires independently — use their player_id to namespace
+      // so two opponents firing at the same cell both show up
+      incomingShots[`${m.player_id}:${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
+    }
+  }
+  // Re-key incoming shots without player prefix for the grid (last writer wins per cell is fine for display)
+  const incomingShotsGrid = {};
+  for (const m of moves) {
+    if (m.player_id !== player.player_id) {
+      incomingShotsGrid[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
     }
   }
 
@@ -699,7 +708,7 @@ function GamePage({ gameId, player, api, onBack }) {
           <div className="board-panel">
             <div className="section-title">Your Board</div>
             <div className="card">
-              <Grid size={gridSize} states={incomingShots} />
+              <Grid size={gridSize} states={incomingShotsGrid} />
               <div className="text-xs text-muted mt-8">
                 Ships remaining: {meInGame?.ships_remaining ?? "?"}
               </div>
