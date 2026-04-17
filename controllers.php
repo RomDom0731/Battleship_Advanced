@@ -273,6 +273,8 @@ function getGame(int $game_id): void {
             ? (int)$game['current_turn_player_id']
             : null;
 
+        $winnerId = $game['winner_id'] !== null ? (int)$game['winner_id'] : null;
+
         http_response_code(200);
         echo json_encode([
             'game_id'                => (int)$game['game_id'],
@@ -280,6 +282,7 @@ function getGame(int $game_id): void {
             'status'                 => $game['status'],
             'players'                => $players,
             'current_turn_player_id' => $turnId,
+            'winner_id'              => $winnerId,
             'total_moves'            => $totalMoves,
         ]);
     } catch (PDOException $e) {
@@ -611,10 +614,9 @@ function fireShot(int $game_id): void {
             return;
         }
 
-        // Duplicate move detection — 409 if THIS player already fired at (row, col)
-        // Scoped to player_id so different players can fire at the same coordinate independently
-        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND player_id = :pid AND row = :r AND col = :c');
-        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id, ':r' => $row, ':c' => $col]);
+        // Duplicate move detection — 409 if this cell was already fired upon in this game
+        $stmt = $db->prepare('SELECT 1 FROM moves WHERE game_id = :gid AND row = :r AND col = :c');
+        $stmt->execute([':gid' => $game_id, ':r' => $row, ':c' => $col]);
         if ($stmt->fetch()) {
             $db->rollBack();
             http_response_code(409);
@@ -808,7 +810,6 @@ function getHealth(): void {
     echo json_encode(['status' => 'ok']);
 }
 
-
 function resetSystem(): void {
     try {
         $db = getDB();
@@ -820,7 +821,6 @@ function resetSystem(): void {
         echo json_encode(['error' => 'server_error', 'message' => $e->getMessage()]);
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints

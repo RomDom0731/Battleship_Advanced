@@ -867,9 +867,11 @@ function GamePage({ gameId, player, api, onBack }) {
       {isDone && (
         <div className="winner-banner mb-16">
           <div className="winner-text">
-            {game.winner_id === player.player_id
-              ? "🏆 You Win!"
-              : `🏆 ${playerNames[String(game.winner_id)] || `Player #${game.winner_id}`} Wins!`}
+            {!game.winner_id
+              ? "🏆 Game Over!"
+              : game.winner_id === player.player_id || String(game.winner_id) === String(player.player_id)
+                ? "🏆 You Win!"
+                : `🏆 ${playerNames[String(game.winner_id)] || player.username} Wins!`}
           </div>
         </div>
       )}
