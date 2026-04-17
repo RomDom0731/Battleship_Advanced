@@ -2,10 +2,6 @@ Options -Indexes
 DirectoryIndex client.html
 RewriteEngine On
 
-# Pass custom headers through to PHP
-SetEnvIf Request_URI "." HTTP_X_TEST_PASSWORD
-RequestHeader set X-Test-Password "%{HTTP_X_TEST_PASSWORD}e" env=HTTP_X_TEST_PASSWORD
-
 # 1. Let real files be served as-is (client.html, images, etc.)
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
