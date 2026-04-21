@@ -13,6 +13,14 @@ function translateStatus(string $status): string {
     };
 }
 
+function logDebug(string $message, mixed $context = null): void {
+    $entry = '[' . date('Y-m-d H:i:s') . '] ' . $message;
+    if ($context !== null) {
+        $entry .= ' ' . json_encode($context);
+    }
+    error_log($entry);  // writes to stderr → shows in Render's log panel
+}
+
 // ---------------------------------------------------------------------------
 // Player Endpoints
 // ---------------------------------------------------------------------------
@@ -28,11 +36,8 @@ function createPlayer(): void {
     if ($username === null || $username === '') {
         http_response_code(400);
         echo json_encode([
-            'error'         => true,
-            'error_code'    => 'bad_request',
-            'error_message' => 'Missing required field: username',
-            'error_detail'  => 'username required',
-            'message'       => 'Missing required field: username',
+            'error' => 'bad_request',
+            'message' => 'Missing required field: username',
         ]);
         return;
     }
@@ -48,7 +53,11 @@ function createPlayer(): void {
 
         $stmt = $db->prepare("SELECT player_id FROM players WHERE LOWER(username) = LOWER(?)");
         $stmt->execute([$username]);
-        if ($stmt->fetch()) {
+
+        $dupRow = $stmt->fetch();
+        error_log('Duplicate check for "' . $username . '": ' . json_encode($dupRow));
+        
+        if ($dupRow) {
             http_response_code(409);
             echo json_encode(['error' => 'conflict', 'error_message' => 'Username already taken', 'message' => 'Username already taken']);
             return;
@@ -57,6 +66,8 @@ function createPlayer(): void {
         $stmt = $db->prepare('INSERT INTO players (username) VALUES (:name) RETURNING player_id');
         $stmt->execute([':name' => $username]);
         $player = $stmt->fetch();
+
+        error_log('Inserted player: ' . json_encode($player));
 
         http_response_code(201);
         echo json_encode([
@@ -490,15 +501,14 @@ function placeShips(int $game_id): void {
 
             if ($row < 0 || $row >= $gridSize || $col < 0 || $col >= $gridSize) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Invalid ship coordinates', 'error_code' => 'bad_request', 'message' => 'Invalid ship coordinates: out of bounds']);
+                echo json_encode(['error' => 'bad_request', 'message' => 'Ship coordinates out of bounds']);
                 return;
             }
 
             $key = "$row,$col";
             if (isset($seen[$key])) {
-                http_response_code(400);
-                echo json_encode(['error' => 'bad_request', 'message' => 'Duplicate ship coordinates in placement']);
-                return;
+                http_response_code(409);
+                echo json_encode(['error' => 'conflict', 'message' => 'Duplicate ship positions in placement']);
             }
             $seen[$key] = true;
         }

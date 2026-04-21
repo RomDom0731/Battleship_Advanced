@@ -72,6 +72,9 @@ if (isset($segments[0]) && $segments[0] === 'test') {
         }
     }
 
+    error_log('ALL SERVER KEYS: ' . json_encode(array_keys($_SERVER)));
+    error_log('PASSWORD HEADER: ' . ($_SERVER['HTTP_X_TEST_PASSWORD'] ?? 'NOT FOUND'));
+
     if ($password !== 'clemson-test-2026') {
         http_response_code(403);
         echo json_encode(['error' => 'forbidden', 'message' => 'Access denied']);
