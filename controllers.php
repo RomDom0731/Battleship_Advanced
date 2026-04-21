@@ -489,7 +489,7 @@ function placeShips(int $game_id): void {
 
             $key = "$row,$col";
             if (isset($seen[$key])) {
-                http_response_code(409);
+                http_response_code(400);
                 echo json_encode(['error' => 'conflict', 'message' => 'Duplicate ship positions in placement']);
             }
             $seen[$key] = true;
