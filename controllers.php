@@ -35,10 +35,7 @@ function createPlayer(): void {
 
     if ($username === null || $username === '') {
         http_response_code(400);
-        echo json_encode([
-            'error' => 'bad_request',
-            'message' => 'Missing required field: username',
-        ]);
+        echo json_encode(['error' => 'bad_request', 'message' => 'Missing required field: username']);
         return;
     }
 
@@ -49,35 +46,20 @@ function createPlayer(): void {
     }
 
     try {
-        $db = getDB();
-
-        $stmt = $db->prepare("SELECT player_id FROM players WHERE LOWER(username) = LOWER(?)");
-        $stmt->execute([$username]);
-
-        $dupRow = $stmt->fetch();
-        error_log('Duplicate check for "' . $username . '": ' . json_encode($dupRow));
-        
-        if ($dupRow) {
-            http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'error_message' => 'Username already taken', 'message' => 'Username already taken']);
-            return;
-        }
-
+        $db   = getDB();
         $stmt = $db->prepare('INSERT INTO players (username) VALUES (:name) RETURNING player_id');
         $stmt->execute([':name' => $username]);
         $player = $stmt->fetch();
 
-        error_log('Inserted player: ' . json_encode($player));
-
         http_response_code(201);
         echo json_encode([
             'player_id' => (int)$player['player_id'],
+            'username'  => $username,
         ]);
     } catch (PDOException $e) {
-        // Unique constraint violation (error code 23505 in PostgreSQL)
-        if (str_contains($e->getMessage(), '23505') || str_contains($e->getMessage(), 'unique')) {
+        if ($e->getCode() === '23505') {
             http_response_code(409);
-            echo json_encode(['error' => 'conflict', 'error_message' => 'Username already taken', 'message' => 'Username already taken']);
+            echo json_encode(['error' => 'conflict', 'message' => 'Username already taken']);
             return;
         }
         http_response_code(500);
@@ -846,6 +828,7 @@ function resetSystem(): void {
 //           403 — handled by router (wrong/missing password)
 //           404 — game not found
 function testResetGame(int $gameId): void {
+    error_log('testResetGame called for game ' . $gameId . ' - should only happen after password check');
     try {
         $db = getDB();
 
