@@ -62,6 +62,16 @@ if (isset($segments[0]) && $segments[0] === 'test') {
         }
     }
 
+    // Also try getallheaders() as another fallback
+    if ($password === '' && function_exists('getallheaders')) {
+        foreach (getallheaders() as $k => $v) {
+            if (strtolower($k) === 'x-test-password') {
+                $password = $v;
+                break;
+            }
+        }
+    }
+
     if ($password !== 'clemson-test-2026') {
         http_response_code(403);
         echo json_encode(['error' => 'forbidden', 'message' => 'Access denied']);
