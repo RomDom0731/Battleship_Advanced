@@ -610,8 +610,9 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
             {games.map(g => {
               const inGame = myGameIds.includes(g.game_id);
               const open   = g.status === "waiting_setup";
-              const joined = g.players ? g.players.length : null;
-              const gMax   = g.max_players ?? null;
+              const joined = g.players ? g.players.length : (g.player_count ?? null);
+              // max_players is not in getGame response — read from localStorage where it was stored on create/join
+              const gMax   = g.max_players ?? parseInt(localStorage.getItem(`bs_maxp_${g.game_id}`) || "0") || null;
               const gridSz = g.grid_size ? `${g.grid_size}×${g.grid_size}` : null;
               return (
                 <div key={g.game_id} className="card" style={{ padding:"12px 16px" }}>
@@ -634,7 +635,7 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
                       </div>
                       <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                         <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Players</span>
-                        <span style={{ fontSize:12, fontWeight:700 }}>{joined}/{gMax}</span>
+                        <span style={{ fontSize:12, fontWeight:700 }}>{joined != null ? (gMax ? `${joined}/${gMax}` : joined) : "?"}</span>
                       </div>
                       {g.players && g.players.length > 0 && (
                         <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
@@ -839,11 +840,17 @@ function GamePage({ gameId, player, api, onBack }) {
           </div>
           <div>
             <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Players</div>
-            <div style={{ fontSize:14, fontWeight:700 }}>{(game.players||[]).length}/{game.max_players ?? maxPlayers ?? "?"}</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>
+              {(() => {
+                const joined = (game.players||[]).length;
+                const max = game.max_players ?? maxPlayers;
+                return max ? `${joined}/${max}` : joined;
+              })()}
+            </div>
           </div>
           {!isWaiting && (
             <div>
-              <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Active</div>
+              <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Still Alive</div>
               <div style={{ fontSize:14, fontWeight:700 }}>{(game.players||[]).filter(p => p.ships_remaining > 0).length}</div>
             </div>
           )}
@@ -1080,8 +1087,49 @@ function App() {
     setTab(`game:${id}`);
   };
 
-  const handleRegister = (p, srv) => { setPlayer(p); setServer(srv); };
-  const logout = () => { setPlayer(null); setMyGames([]); setTab("lobby"); localStorage.clear(); };
+  const handleRegister = async (p, srv) => {
+    setPlayer(p);
+    setServer(srv);
+    // After login, fetch all games and restore any this player is already in
+    // so nav tabs come back even after logout or a different device session
+    try {
+      const api = makeApi(srv);
+      const allGames = await api.getGames();
+      const gameList = Array.isArray(allGames) ? allGames : [];
+      // Batch-fetch details to find which games this player is a member of
+      const details = await Promise.allSettled(gameList.map(g => api.getGame(g.game_id)));
+      const rejoined = [];
+      details.forEach((d, i) => {
+        if (d.status === "fulfilled") {
+          const g = d.value;
+          const inGame = (g.players || []).some(pl => pl.player_id === p.player_id);
+          if (inGame) {
+            rejoined.push(g.game_id);
+            // Restore max_players if not already stored
+            if (!localStorage.getItem(`bs_maxp_${g.game_id}`) && allGames[i]?.max_players) {
+              localStorage.setItem(`bs_maxp_${g.game_id}`, String(allGames[i].max_players));
+            }
+          }
+        }
+      });
+      if (rejoined.length > 0) {
+        setMyGames(prev => {
+          const merged = [...new Set([...prev, ...rejoined])];
+          return merged;
+        });
+      }
+    } catch { /* silently ignore — lobby will load fresh anyway */ }
+  };
+
+  const logout = () => {
+    // Only clear the player identity — keep game data, ship positions, theme, server URL
+    // so they're restored correctly when the player logs back in
+    localStorage.removeItem("bs_player");
+    localStorage.removeItem("bs_games");
+    setPlayer(null);
+    setMyGames([]);
+    setTab("lobby");
+  };
 
   if (!player) return <RegisterPage onRegister={handleRegister} />;
 
