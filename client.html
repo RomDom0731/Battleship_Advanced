@@ -631,16 +631,15 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
   const creatingRef             = useRef(false);
 
   const load = useCallback(async () => {
-    // Only 2 requests total — no per-game detail fetches.
-    // The list endpoints give us everything the lobby needs.
     const [gamesResult, playersResult] = await Promise.allSettled([
       api.getGames(),
       api.getPlayers(),
     ]);
 
+    let gameList = [];
     if (gamesResult.status === "fulfilled") {
       const raw = gamesResult.value;
-      setGames(Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []));
+      gameList = Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []);
     } else {
       setErr("Cannot reach server. Check your server URL.");
     }
@@ -648,6 +647,21 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
     if (playersResult.status === "fulfilled") {
       const raw = playersResult.value;
       setPlayers(Array.isArray(raw) ? raw : []);
+    }
+
+    // Batch-fetch full game details (grid_size, max_players, players list)
+    // getGames only returns game_id + status, so we need getGame for each
+    if (gameList.length > 0) {
+      const details = await Promise.allSettled(gameList.map(g => api.getGame(g.game_id)));
+      const merged = gameList.map((g, i) => {
+        if (details[i].status === "fulfilled") {
+          return { ...g, ...details[i].value };
+        }
+        return g;
+      });
+      setGames(merged);
+    } else {
+      setGames(gameList);
     }
   }, [api]);
 
@@ -753,13 +767,12 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
             {games.map(g => {
               const inGame    = myGameIds.includes(g.game_id);
               const open      = g.status === "waiting_setup";
-              const joined    = g.players_joined ?? (g.players ? g.players.length : "?");
+              const joined    = g.players ? g.players.length : "?";
               const maxP      = g.max_players ?? "?";
               const gridSz    = g.grid_size ? `${g.grid_size}×${g.grid_size}` : "?";
-              const totalReg  = players.length;
               return (
                 <div key={g.game_id} className="card" style={{ padding: "12px 16px" }}>
-                  <div className="game-row" style={{ marginBottom: 8 }}>
+                  <div className="game-row" style={{ marginBottom: joined !== "?" || gridSz !== "?" ? 8 : 0 }}>
                     <div className="game-info">
                       <div className="game-title">Game #{g.game_id}</div>
                     </div>
@@ -773,32 +786,30 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
                           </button>
                         : <button className="btn btn-sm" disabled>Closed</button>}
                   </div>
-                  {/* Game stats row */}
-                  <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                      <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Grid</span>
-                      <span style={{ fontSize:12, fontWeight:700 }}>{gridSz}</span>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                      <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Players</span>
-                      <span style={{ fontSize:12, fontWeight:700 }}>{joined}/{maxP}</span>
-                    </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                      <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Registered</span>
-                      <span style={{ fontSize:12, fontWeight:700 }}>{totalReg}</span>
-                    </div>
-                    {g.players && g.players.length > 0 && (
+                  {/* Game stats — only show once detail is loaded */}
+                  {g.grid_size && (
+                    <div style={{ display:"flex", gap:16, flexWrap:"wrap", alignItems:"center" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>In Game</span>
-                        <span style={{ fontSize:12 }}>
-                          {g.players.map(p => {
-                            const name = players.find(pl => pl.player_id === p.player_id)?.username || `#${p.player_id}`;
-                            return <span key={p.player_id} style={{ marginRight:6 }}>{name}</span>;
-                          })}
-                        </span>
+                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Grid</span>
+                        <span style={{ fontSize:12, fontWeight:700 }}>{gridSz}</span>
                       </div>
-                    )}
-                  </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Players</span>
+                        <span style={{ fontSize:12, fontWeight:700 }}>{joined}/{maxP}</span>
+                      </div>
+                      {g.players && g.players.length > 0 && (
+                        <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
+                          <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>In Game</span>
+                          <span style={{ fontSize:12 }}>
+                            {g.players.map((p, i) => {
+                              const name = players.find(pl => pl.player_id === p.player_id)?.username || `#${p.player_id}`;
+                              return <span key={p.player_id}>{i > 0 ? ", " : ""}{name}</span>;
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -839,7 +850,7 @@ function PlaceShips({ gameId, player, api, gridSize, onPlaced }) {
     try {
       const ships = [...sel].map(k => { const [row, col] = k.split(",").map(Number); return { row, col }; });
       await api.placeShips(gameId, player.player_id, ships);
-      onPlaced();
+      onPlaced(ships); // pass ship coords back up
     } catch (e) { setErr(e.message || "Placement failed."); }
     finally { setBusy(false); }
   };
@@ -904,6 +915,7 @@ function GamePage({ gameId, player, api, onBack }) {
   const [game, setGame]           = useState(null);
   const [moves, setMoves]         = useState([]);
   const [placed, setPlaced]       = useState(false);
+  const [myShipCells, setMyShipCells] = useState({}); // key->{row,col} map stored locally after placement
   const [targetId, setTarget]     = useState(null);
   const [firing, setFiring]       = useState(false);
   const [err, setErr]             = useState("");
@@ -976,26 +988,21 @@ function GamePage({ gameId, player, api, onBack }) {
     }
   }
 
-  // Build my own board: show my ship positions, then overlay incoming shots
-  // meInGame.ships contains ship positions if the server returns them,
-  // otherwise fall back to empty (ships only visible after placed)
+  // Build my own board: show ship positions from local state (server doesn't return ships in getGame),
+  // then overlay incoming shots on top.
   const myBoardGrid = {};
-  // Overlay ships from meInGame.ships (array of {row,col} or {row,col,is_hit})
-  for (const s of (meInGame?.ships || [])) {
-    const key = `${s.row},${s.col}`;
-    myBoardGrid[key] = s.is_hit ? "ship-hit" : "ship";
+  // Start with all ship cells (stored locally after placement)
+  for (const key of Object.keys(myShipCells)) {
+    myBoardGrid[key] = "ship";
   }
-  // Overlay incoming shots on top (hit/miss take priority to show damage)
+  // Overlay incoming shots — hits turn green ship cells orange, misses show as blue
   for (const m of moves) {
     if (m.player_id !== player.player_id) {
       const key = `${m.row},${m.col}`;
       if (m.result === "hit") {
-        myBoardGrid[key] = "ship-hit"; // ship was hit here
-      } else {
-        // Only show miss if there's no ship at this cell (shouldn't happen but safety)
-        if (!myBoardGrid[key] || myBoardGrid[key] === "empty") {
-          myBoardGrid[key] = "miss";
-        }
+        myBoardGrid[key] = "ship-hit";
+      } else if (!myBoardGrid[key]) {
+        myBoardGrid[key] = "miss";
       }
     }
   }
@@ -1058,7 +1065,14 @@ function GamePage({ gameId, player, api, onBack }) {
       {isWaiting && !placed && meInGame && (
         <div className="card mb-16">
           <PlaceShips gameId={gameId} player={player} api={api} gridSize={gridSize}
-            onPlaced={() => { setPlaced(true); refresh(); }} />
+            onPlaced={(ships) => {
+              // Store ship positions locally — server doesn't return them in getGame
+              const cells = {};
+              for (const s of ships) cells[`${s.row},${s.col}`] = { row: s.row, col: s.col };
+              setMyShipCells(cells);
+              setPlaced(true);
+              refresh();
+            }} />
         </div>
       )}
 
@@ -1087,9 +1101,11 @@ function GamePage({ gameId, player, api, onBack }) {
           <div className="section-title">Players in this Game</div>
           <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
             {(game.players || []).map(p => {
-              const isMe       = p.player_id === player.player_id;
-              const name       = playerNames[String(p.player_id)] || `#${p.player_id}`;
-              const hasPlaced  = p.has_placed_ships ?? false;
+              const isMe   = p.player_id === player.player_id;
+              const name   = playerNames[String(p.player_id)] || `#${p.player_id}`;
+              // has_placed_ships isn't in getGame response; infer from ships_remaining > 0
+              // or from local `placed` flag for the current user
+              const selfPlaced = isMe ? placed : (p.ships_remaining > 0);
               return (
                 <div key={p.player_id} className="surface" style={{ display:"flex", alignItems:"center", gap:10 }}>
                   <div className="avatar" style={{ width:28, height:28, fontSize:11, flexShrink:0 }}>
@@ -1097,9 +1113,9 @@ function GamePage({ gameId, player, api, onBack }) {
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div className="text-xs fw-bold">{name}{isMe ? " (you)" : ""}</div>
-                    <div className="text-xs text-muted">{hasPlaced ? "✓ Ships placed" : "⏳ Placing ships…"}</div>
+                    <div className="text-xs text-muted">{selfPlaced ? "✓ Ships placed" : "⏳ Placing ships…"}</div>
                   </div>
-                  {hasPlaced
+                  {selfPlaced
                     ? <span className="badge badge-win">READY</span>
                     : <span className="badge badge-open">WAITING</span>}
                 </div>
@@ -1116,11 +1132,11 @@ function GamePage({ gameId, player, api, onBack }) {
 
           {/* Waiting message after I've placed */}
           {placed && meInGame && (() => {
-            const notReady = (game.players||[]).filter(p => !(p.has_placed_ships ?? false));
-            const waitingFor = notReady.filter(p => p.player_id !== player.player_id);
-            return waitingFor.length > 0 ? (
+            const notReadyCount = (game.players||[]).filter(p => p.player_id !== player.player_id && !(p.ships_remaining > 0)).length;
+            const waitingFor = notReadyCount;
+            return waitingFor > 0 ? (
               <div className="alert alert-success mt-8" style={{ marginBottom:0 }}>
-                ✓ Ships placed! Waiting for {waitingFor.length} opponent{waitingFor.length > 1 ? "s" : ""} to place ships…
+                ✓ Ships placed! Waiting for {waitingFor} opponent{waitingFor > 1 ? "s" : ""} to place ships…
               </div>
             ) : null;
           })()}
