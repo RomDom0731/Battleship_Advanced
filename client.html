@@ -7,104 +7,102 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <style>
-  :root {
-    --bg:         #f4f3ef;
-    --fg:         #1a1a1a;
-    --fg-muted:   #666;
-    --fg-faint:   #aaa;
-    --card-bg:    #ffffff;
-    --card-border:#e0ddd6;
-    --surface-bg: #eeece7;
-    --input-bg:   #f5f4f0;
-    --input-border:#ddd;
-    --nav-bg:     #ffffff;
-    --nav-border: #ddd;
-    --tab-bg:     #f0ede8;
-    --tab-active: #ffffff;
+  /* ── Theme variables ── */
+  :root, [data-theme="light"] {
+    --bg:            #f4f3ef;
+    --fg:            #1a1a1a;
+    --fg-muted:      #666;
+    --fg-faint:      #aaa;
+    --card-bg:       #ffffff;
+    --card-border:   #e0ddd6;
+    --surface-bg:    #eeece7;
+    --input-bg:      #f5f4f0;
+    --input-border:  #ddd;
+    --nav-bg:        #ffffff;
+    --nav-border:    #ddd;
+    --tab-bg:        #f0ede8;
+    --tab-active:    #ffffff;
     --tab-active-fg: #1a1a1a;
-    --divider:    #eee;
-    --stat-bg:    #eeece7;
-    --stat-fg:    #1a1a1a;
-    --stat-label: #555;
-    --btn-border: #ccc;
-    --btn-hover:  rgba(0,0,0,0.05);
-    --cell-empty: #eeece7;
-    --cell-border:#ddd;
+    --divider:       #eee;
+    --stat-bg:       #eeece7;
+    --stat-fg:       #1a1a1a;
+    --stat-label:    #555;
+    --btn-border:    #ccc;
+    --btn-hover:     rgba(0,0,0,0.05);
+    --cell-empty:    #eeece7;
+    --cell-border:   #ddd;
+  }
+  [data-theme="dark"] {
+    --bg:            #1a1a18;
+    --fg:            #e8e6e0;
+    --fg-muted:      #999;
+    --fg-faint:      #555;
+    --card-bg:       #252522;
+    --card-border:   #3a3a36;
+    --surface-bg:    #2e2e2a;
+    --input-bg:      #2e2e2a;
+    --input-border:  #4a4a44;
+    --nav-bg:        #252522;
+    --nav-border:    #3a3a36;
+    --tab-bg:        #1e1e1c;
+    --tab-active:    #333330;
+    --tab-active-fg: #e8e6e0;
+    --divider:       #333330;
+    --stat-bg:       #2e2e2a;
+    --stat-fg:       #e8e6e0;
+    --stat-label:    #999;
+    --btn-border:    #4a4a44;
+    --btn-hover:     rgba(255,255,255,0.07);
+    --cell-empty:    #2a2a27;
+    --cell-border:   #3a3a36;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:         #1a1a18;
-      --fg:         #e8e6e0;
-      --fg-muted:   #999;
-      --fg-faint:   #666;
-      --card-bg:    #252522;
-      --card-border:#3a3a36;
-      --surface-bg: #2e2e2a;
-      --input-bg:   #2e2e2a;
-      --input-border:#4a4a44;
-      --nav-bg:     #252522;
-      --nav-border: #3a3a36;
-      --tab-bg:     #1e1e1c;
-      --tab-active: #333330;
+    :root:not([data-theme]) {
+      --bg:            #1a1a18;
+      --fg:            #e8e6e0;
+      --fg-muted:      #999;
+      --fg-faint:      #555;
+      --card-bg:       #252522;
+      --card-border:   #3a3a36;
+      --surface-bg:    #2e2e2a;
+      --input-bg:      #2e2e2a;
+      --input-border:  #4a4a44;
+      --nav-bg:        #252522;
+      --nav-border:    #3a3a36;
+      --tab-bg:        #1e1e1c;
+      --tab-active:    #333330;
       --tab-active-fg: #e8e6e0;
-      --divider:    #333330;
-      --stat-bg:    #2e2e2a;
-      --stat-fg:    #e8e6e0;
-      --stat-label: #999;
-      --btn-border: #4a4a44;
-      --btn-hover:  rgba(255,255,255,0.07);
-      --cell-empty: #2a2a27;
-      --cell-border:#3a3a36;
+      --divider:       #333330;
+      --stat-bg:       #2e2e2a;
+      --stat-fg:       #e8e6e0;
+      --stat-label:    #999;
+      --btn-border:    #4a4a44;
+      --btn-hover:     rgba(255,255,255,0.07);
+      --cell-empty:    #2a2a27;
+      --cell-border:   #3a3a36;
     }
   }
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Space Mono', 'Courier New', monospace;
-    background: var(--bg);
-    color: var(--fg);
-    min-height: 100vh;
-  }
+  body { font-family: 'Space Mono', 'Courier New', monospace; background: var(--bg); color: var(--fg); min-height: 100vh; }
 
-  /* Nav */
   .nav {
-    background: var(--nav-bg);
-    border-bottom: 0.5px solid var(--nav-border);
-    padding: 0 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    height: 54px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    flex-wrap: wrap;
-    min-height: 54px;
+    background: var(--nav-bg); border-bottom: 0.5px solid var(--nav-border);
+    padding: 0 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+    height: 54px; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; min-height: 54px;
   }
   .logo { font-size: 14px; font-weight: 700; letter-spacing: 0.14em; display: flex; align-items: center; gap: 8px; }
-  .logo-icon { font-size: 18px; }
   .nav-spacer { flex: 1; }
   .user-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-muted); }
   .avatar {
-    width: 30px; height: 30px; border-radius: 50%;
-    background: #1D9E75; color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    width: 30px; height: 30px; border-radius: 50%; background: #1D9E75; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;
   }
 
-  /* Buttons */
   .btn {
-    background: transparent;
-    border: 0.5px solid var(--btn-border);
-    border-radius: 8px;
-    padding: 6px 14px;
-    font-size: 12px;
-    cursor: pointer;
-    font-family: inherit;
-    letter-spacing: 0.05em;
-    color: var(--fg);
-    transition: background 0.12s, opacity 0.12s;
-    white-space: nowrap;
+    background: transparent; border: 0.5px solid var(--btn-border); border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
+    letter-spacing: 0.05em; color: var(--fg); transition: background 0.12s, opacity 0.12s; white-space: nowrap;
   }
   .btn:hover { background: var(--btn-hover); }
   .btn:active { transform: scale(0.97); }
@@ -116,31 +114,20 @@
   .btn-tab { border-radius: 6px; }
   .btn-tab.active { background: var(--tab-active); border-color: var(--btn-border); font-weight: 700; }
 
-  /* Cards */
-  .card {
-    background: var(--card-bg);
-    border: 0.5px solid var(--card-border);
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-  }
+  .card { background: var(--card-bg); border: 0.5px solid var(--card-border); border-radius: 12px; padding: 1rem 1.25rem; }
   .surface { background: var(--surface-bg); border-radius: 8px; padding: 12px 16px; }
 
-  /* Form */
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-muted); margin-bottom: 5px; }
   input[type=text], input[type=number], select {
     width: 100%; background: var(--input-bg); border: 0.5px solid var(--input-border);
-    border-radius: 8px; padding: 8px 12px; font-size: 13px;
-    font-family: inherit; color: var(--fg); outline: none;
+    border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; color: var(--fg); outline: none;
   }
   input[type=text]:focus, input[type=number]:focus { border-color: #1D9E75; }
   input[type=range] { width: 100%; accent-color: #1D9E75; }
 
   /* Badges */
-  .badge {
-    display: inline-block; padding: 2px 8px; border-radius: 99px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
-  }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; }
   .badge-open   { background: #e1f5ee; color: #0f6e56; }
   .badge-live   { background: #eaf3de; color: #3b6d11; }
   .badge-done   { background: #faece7; color: #993c1d; }
@@ -149,39 +136,45 @@
   .badge-hit    { background: #fcebeb; color: #a32d2d; }
   .badge-miss   { background: #e6f1fb; color: #185fa5; }
   .badge-win    { background: #e1f5ee; color: #0f6e56; }
+  [data-theme="dark"] .badge-open   { background: #0d3326; color: #5dcaa5; }
+  [data-theme="dark"] .badge-live   { background: #1a2e0d; color: #8dc850; }
+  [data-theme="dark"] .badge-done   { background: #3a1508; color: #e8845c; }
+  [data-theme="dark"] .badge-turn   { background: #3a2205; color: #e8a840; }
+  [data-theme="dark"] .badge-joined { background: #0d2240; color: #5b9ee8; }
+  [data-theme="dark"] .badge-hit    { background: #3a0d0d; color: #e87070; }
+  [data-theme="dark"] .badge-miss   { background: #0d2240; color: #5b9ee8; }
+  [data-theme="dark"] .badge-win    { background: #0d3326; color: #5dcaa5; }
   @media (prefers-color-scheme: dark) {
-    .badge-open   { background: #0d3326; color: #5dcaa5; }
-    .badge-live   { background: #1a2e0d; color: #8dc850; }
-    .badge-done   { background: #3a1508; color: #e8845c; }
-    .badge-turn   { background: #3a2205; color: #e8a840; }
-    .badge-joined { background: #0d2240; color: #5b9ee8; }
-    .badge-hit    { background: #3a0d0d; color: #e87070; }
-    .badge-miss   { background: #0d2240; color: #5b9ee8; }
-    .badge-win    { background: #0d3326; color: #5dcaa5; }
+    :root:not([data-theme]) .badge-open   { background: #0d3326; color: #5dcaa5; }
+    :root:not([data-theme]) .badge-live   { background: #1a2e0d; color: #8dc850; }
+    :root:not([data-theme]) .badge-done   { background: #3a1508; color: #e8845c; }
+    :root:not([data-theme]) .badge-turn   { background: #3a2205; color: #e8a840; }
+    :root:not([data-theme]) .badge-joined { background: #0d2240; color: #5b9ee8; }
+    :root:not([data-theme]) .badge-hit    { background: #3a0d0d; color: #e87070; }
+    :root:not([data-theme]) .badge-miss   { background: #0d2240; color: #5b9ee8; }
+    :root:not([data-theme]) .badge-win    { background: #0d3326; color: #5dcaa5; }
   }
 
   /* Alerts */
   .alert { border-radius: 8px; padding: 8px 12px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
   .alert-error   { background: #fcebeb; border: 0.5px solid #f09595; color: #791f1f; }
   .alert-success { background: #e1f5ee; border: 0.5px solid #5dcaa5; color: #085041; }
+  [data-theme="dark"] .alert-error   { background: #3a1515; border-color: #8b3535; color: #f09595; }
+  [data-theme="dark"] .alert-success { background: #0d2e22; border-color: #2a7a5a; color: #5dcaa5; }
   @media (prefers-color-scheme: dark) {
-    .alert-error   { background: #3a1515; border-color: #8b3535; color: #f09595; }
-    .alert-success { background: #0d2e22; border-color: #2a7a5a; color: #5dcaa5; }
+    :root:not([data-theme]) .alert-error   { background: #3a1515; border-color: #8b3535; color: #f09595; }
+    :root:not([data-theme]) .alert-success { background: #0d2e22; border-color: #2a7a5a; color: #5dcaa5; }
   }
   .close-btn { background: none; border: none; cursor: pointer; color: inherit; font-size: 18px; line-height: 1; flex-shrink: 0; }
 
-  /* Section title */
   .section-title { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-muted); font-weight: 700; margin-bottom: 10px; }
 
   /* Grid */
-  .grid-wrap { overflow-x: auto; display: block; max-width: 100%; }
   .grid-row { display: flex; }
   .cell {
     display: flex; align-items: center; justify-content: center;
-    border: 0.5px solid var(--cell-border); border-radius: 3px;
-    font-size: 13px; line-height: 1; flex-shrink: 0;
-    transition: background 0.1s, transform 0.08s;
-    user-select: none;
+    border: 0.5px solid var(--cell-border); border-radius: 3px; line-height: 1;
+    flex-shrink: 0; transition: background 0.1s, transform 0.08s; user-select: none;
   }
   .cell-empty     { background: var(--cell-empty); }
   .cell-ship      { background: #1D9E75; color: #fff; }
@@ -192,92 +185,62 @@
   .cell-clickable { cursor: crosshair; }
   .cell-clickable:hover { filter: brightness(0.88); }
 
-  /* Stat cards */
   .stat-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
   .stat-card { background: var(--stat-bg); border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 70px; }
   .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--stat-label); margin-bottom: 4px; }
   .stat-value { font-size: 22px; font-weight: 700; color: var(--stat-fg); }
 
-  /* Move log */
   .move-log { max-height: 200px; overflow-y: auto; }
   .move-row { display: flex; gap: 12px; align-items: center; padding: 5px 0; border-bottom: 0.5px solid var(--divider); font-size: 12px; }
   .move-row:last-child { border-bottom: none; }
   .move-time { color: var(--fg-faint); min-width: 72px; font-variant-numeric: tabular-nums; }
 
-  /* Layout helpers */
-  .flex { display: flex; }
-  .flex-wrap { flex-wrap: wrap; }
-  .gap-8 { gap: 8px; }
-  .gap-12 { gap: 12px; }
-  .gap-16 { gap: 16px; }
+  .flex { display: flex; } .flex-wrap { flex-wrap: wrap; }
+  .gap-8 { gap: 8px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; }
   .flex-1 { flex: 1; }
-  .mb-8 { margin-bottom: 8px; }
-  .mb-12 { margin-bottom: 12px; }
-  .mb-16 { margin-bottom: 16px; }
-  .mt-8 { margin-top: 8px; }
-  .mt-12 { margin-top: 12px; }
-  .text-muted { color: var(--fg-muted); }
-  .text-sm { font-size: 12px; }
-  .text-xs { font-size: 11px; }
-  .fw-bold { font-weight: 700; }
-  .ml-auto { margin-left: auto; }
-  .w-full { width: 100%; }
-  .text-center { text-align: center; }
+  .mb-8 { margin-bottom: 8px; } .mb-12 { margin-bottom: 12px; } .mb-16 { margin-bottom: 16px; }
+  .mt-8 { margin-top: 8px; } .mt-12 { margin-top: 12px; }
+  .text-muted { color: var(--fg-muted); } .text-sm { font-size: 12px; } .text-xs { font-size: 11px; }
+  .fw-bold { font-weight: 700; } .ml-auto { margin-left: auto; } .w-full { width: 100%; } .text-center { text-align: center; }
 
-  /* Page container */
   .page { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem; }
 
-  /* Modal overlay */
-  .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-    display: flex; align-items: center; justify-content: center; z-index: 200;
-  }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 200; }
   .modal { max-width: 400px; width: 90%; margin: 16px; }
 
-  /* Game list row */
   .game-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .game-info { flex: 1; min-width: 140px; }
   .game-title { font-weight: 700; font-size: 14px; }
-  .game-meta  { font-size: 11px; color: var(--fg-muted); margin-top: 2px; }
 
-  /* Winner banner */
   .winner-banner { border: 2px solid #1D9E75; border-radius: 12px; padding: 1rem; text-align: center; margin-bottom: 16px; }
   .winner-text { font-size: 22px; font-weight: 700; color: #1D9E75; }
 
-  /* Boards layout — column on smaller screens, row on large */
   .boards { display: flex; gap: 16px; flex-direction: column; }
-  @media (min-width: 700px) {
-    .boards { flex-direction: row; align-items: flex-start; }
-  }
-  .board-panel { min-width: 0; }
+  @media (min-width: 700px) { .boards { flex-direction: row; align-items: flex-start; } }
+  .board-panel { min-width: 0; flex: 1; }
 
-  /* Placement legend */
   .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
   .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--fg-muted); }
   .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
 
-  /* Pulse animation for live badge */
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
   .pulse { animation: pulse 2s infinite; }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
 </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel">
 const { useState, useEffect, useCallback, useRef } = React;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-const initials = (s = "") => s.slice(0, 2).toUpperCase();
-const fmtAcc   = (n) => (n * 100).toFixed(1) + "%";
-const fmtTime  = (ts) => ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+const initials    = (s = "") => s.slice(0, 2).toUpperCase();
+const fmtAcc      = (n) => (n * 100).toFixed(1) + "%";
+const fmtTime     = (ts) => ts ? new Date(ts).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit", second:"2-digit" }) : "";
 const statusBadge = (s) => s === "playing" ? "badge-live" : s === "finished" ? "badge-done" : "badge-open";
 const statusLabel = (s) => s === "waiting_setup" ? "OPEN" : s === "playing" ? "LIVE" : "DONE";
 
@@ -292,7 +255,6 @@ function useLocalStorage(key, def) {
   return [val, set];
 }
 
-// ── API ───────────────────────────────────────────────────────────────────────
 function makeApi(base) {
   base = base.replace(/\/$/, "");
   async function call(method, path, body) {
@@ -304,20 +266,18 @@ function makeApi(base) {
     return data;
   }
   return {
-    createPlayer: (username)              => call("POST", "/players", { username }),
-    getPlayers:   ()                       => call("GET",  "/players"),
-    getStats:     (id)                    => call("GET",  `/players/${id}/stats`),
-    getGames:     ()                      => call("GET",  "/games"),
-    getGame:      (id)                    => call("GET",  `/games/${id}`),
-    createGame:   (b)                     => call("POST", "/games", b),
-    joinGame:     (id, pid)              => call("POST", `/games/${id}/join`, { player_id: pid }),
-    placeShips:   (id, pid, ships)       => call("POST", `/games/${id}/place`, { player_id: pid, ships }),
-    fireShot:     (id, pid, row, col)    => call("POST", `/games/${id}/fire`, { player_id: pid, row, col }),
-    getMoves:     (id)                   => call("GET",  `/games/${id}/moves`),
+    createPlayer: (username)          => call("POST", "/players", { username }),
+    getPlayers:   ()                  => call("GET",  "/players"),
+    getStats:     (id)                => call("GET",  `/players/${id}/stats`),
+    getGames:     ()                  => call("GET",  "/games"),
+    getGame:      (id)                => call("GET",  `/games/${id}`),
+    createGame:   (b)                 => call("POST", "/games", b),
+    joinGame:     (id, pid)           => call("POST", `/games/${id}/join`, { player_id: pid }),
+    placeShips:   (id, pid, ships)    => call("POST", `/games/${id}/place`, { player_id: pid, ships }),
+    fireShot:     (id, pid, row, col) => call("POST", `/games/${id}/fire`, { player_id: pid, row, col }),
+    getMoves:     (id)                => call("GET",  `/games/${id}/moves`),
   };
 }
-
-// ── Components ────────────────────────────────────────────────────────────────
 
 function Alert({ type = "error", msg, onClose }) {
   if (!msg) return null;
@@ -329,14 +289,12 @@ function Alert({ type = "error", msg, onClose }) {
   );
 }
 
-function Cell({ state, size, onClick }) {
-  // Scale cell size down for larger grids so they fit without overlapping
-  const sz = Math.max(18, Math.min(38, Math.floor(420 / size)));
+// Cell and Grid — auto-sizing via ResizeObserver + row/column labels
+function Cell({ state, sz, onClick }) {
   const cls = ["cell", `cell-${state || "empty"}`, onClick ? "cell-clickable" : ""].join(" ");
-  const icon = state === "hit" ? "✕"
+  const icon = state === "hit" || state === "ship-hit" ? "✕"
              : state === "miss" ? "·"
              : state === "ship" || state === "select" ? "▪"
-             : state === "ship-hit" ? "✕"
              : "";
   return (
     <div className={cls} style={{ width: sz, height: sz, fontSize: sz * 0.42 }} onClick={onClick}>
@@ -346,24 +304,43 @@ function Cell({ state, size, onClick }) {
 }
 
 function Grid({ size, states = {}, onCell, clickable }) {
-  const sz = Math.max(18, Math.min(38, Math.floor(420 / size)));
+  const wrapRef = useRef(null);
+  const [cellSz, setCellSz] = useState(30);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const compute = () => {
+      // Account for the label column (cellSz wide) by fitting size+1 units into available width
+      const avail = (el.parentElement || el).clientWidth - 8;
+      setCellSz(Math.max(16, Math.min(36, Math.floor(avail / (size + 1)))));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el.parentElement || el);
+    return () => ro.disconnect();
+  }, [size]);
+
+  const labelSz = cellSz;
   const labelStyle = {
-    width: sz, height: sz, display: "flex", alignItems: "center",
-    justifyContent: "center", fontSize: sz * 0.38, color: "var(--fg-muted)",
-    fontWeight: 700, flexShrink: 0,
+    width: labelSz, height: labelSz,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: Math.max(8, labelSz * 0.38), color: "var(--fg-muted)",
+    fontWeight: 700, flexShrink: 0, userSelect: "none",
   };
+
   return (
-    <div className="grid-wrap">
-      {/* Column number header */}
+    <div ref={wrapRef} style={{ display: "inline-block" }}>
+      {/* Column number header row */}
       <div className="grid-row">
-        <div style={{ ...labelStyle, visibility: "hidden" }} />
+        <div style={{ ...labelStyle, visibility: "hidden" }} /> {/* spacer above row labels */}
         {Array.from({ length: size }, (_, c) => (
           <div key={c} style={labelStyle}>{c + 1}</div>
         ))}
       </div>
+      {/* Data rows with row letter label */}
       {Array.from({ length: size }, (_, r) => (
         <div key={r} className="grid-row">
-          {/* Row letter label */}
           <div style={labelStyle}>{String.fromCharCode(65 + r)}</div>
           {Array.from({ length: size }, (_, c) => {
             const key = `${r},${c}`;
@@ -371,7 +348,7 @@ function Grid({ size, states = {}, onCell, clickable }) {
               <Cell
                 key={c}
                 state={states[key]}
-                size={size}
+                sz={cellSz}
                 onClick={clickable ? () => onCell(r, c) : undefined}
               />
             );
@@ -382,50 +359,39 @@ function Grid({ size, states = {}, onCell, clickable }) {
   );
 }
 
-// ── Auth Page (Register + Sign In) ───────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 function RegisterPage({ onRegister }) {
-  const [server, setServer]   = useLocalStorage("bs_server", window.location.origin);
+  const [server, setServer]     = useLocalStorage("bs_server", window.location.origin);
   const [username, setUsername] = useState("");
-  const [busy, setBusy]       = useState(false);
-  const [err, setErr]         = useState("");
-  const [mode, setMode]       = useState("login"); // "login" | "register"
+  const [busy, setBusy]         = useState(false);
+  const [err, setErr]           = useState("");
+  const [mode, setMode]         = useState("login");
 
-  const handleSubmit = async () => {
+  const submit = async () => {
     if (!username.trim()) { setErr("Username is required."); return; }
     if (!server.trim())   { setErr("Server URL is required."); return; }
     setBusy(true); setErr("");
     const api = makeApi(server.trim());
     const uname = username.trim();
-
     if (mode === "register") {
-      // Create a new account
       try {
         const res = await api.createPlayer(uname);
         onRegister({ player_id: res.player_id, username: uname }, server.trim());
       } catch (e) {
         const msg = (e.message || e.error_message || e.error || "").toLowerCase();
-        if (msg.includes("taken") || msg.includes("conflict") || e.status === 409) {
+        if (msg.includes("taken") || msg.includes("conflict") || e.status === 409)
           setErr("Username already taken. Try a different name, or sign in instead.");
-        } else if (!msg) {
-          setErr("Cannot reach server. Check the URL.");
-        } else {
-          setErr(e.message || e.error_message || "Registration failed.");
-        }
+        else if (!msg) setErr("Cannot reach server. Check the URL.");
+        else setErr(e.message || e.error_message || "Registration failed.");
       }
     } else {
-      // Sign in — look up the username from the players list
       try {
-        const players = await api.getPlayers();
-        const list = Array.isArray(players) ? players : [];
-        const found = list.find(p => p.username.toLowerCase() === uname.toLowerCase());
-        if (!found) {
-          setErr("No account found with that username. Check spelling or register a new account.");
-        } else {
-          onRegister({ player_id: found.player_id, username: found.username }, server.trim());
-        }
-      } catch (e) {
-        setErr("Cannot reach server. Check the URL.");
-      }
+        const list = await api.getPlayers();
+        const arr = Array.isArray(list) ? list : [];
+        const found = arr.find(p => p.username.toLowerCase() === uname.toLowerCase());
+        if (!found) setErr("No account found with that username.");
+        else onRegister({ player_id: found.player_id, username: found.username }, server.trim());
+      } catch { setErr("Cannot reach server. Check the URL."); }
     }
     setBusy(false);
   };
@@ -433,78 +399,43 @@ function RegisterPage({ onRegister }) {
   return (
     <div style={{ maxWidth: 420, margin: "3rem auto", padding: "0 1rem" }}>
       <div className="card">
-        {/* Title */}
         <div className="mb-16">
-          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 4 }}>⊕ BATTLESHIP</div>
+          <div style={{ fontSize:24, fontWeight:700, letterSpacing:"0.1em", marginBottom:4 }}>⊕ BATTLESHIP</div>
           <div className="text-sm text-muted">
             {mode === "login" ? "Sign in to your existing account." : "Create a new account to play."}
           </div>
         </div>
-
-        {/* Tab switcher */}
-        <div style={{ display: "flex", background: "var(--tab-bg)", borderRadius: 10, padding: 3, marginBottom: 20, gap: 3 }}>
-          {["login", "register"].map(m => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); setErr(""); }}
-              style={{
-                flex: 1, border: "none", borderRadius: 8, padding: "7px 0",
-                fontSize: 12, fontFamily: "inherit", fontWeight: 700,
-                letterSpacing: "0.06em", cursor: "pointer",
-                background: mode === m ? "var(--tab-active)" : "transparent",
-                color: mode === m ? "var(--tab-active-fg)" : "var(--fg-muted)",
-                boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
-                transition: "all .15s",
-              }}
-            >
-              {m === "login" ? "Sign In" : "Register"}
-            </button>
+        <div style={{ display:"flex", background:"var(--tab-bg)", borderRadius:10, padding:3, marginBottom:20, gap:3 }}>
+          {["login","register"].map(m => (
+            <button key={m} onClick={() => { setMode(m); setErr(""); }} style={{
+              flex:1, border:"none", borderRadius:8, padding:"7px 0", fontSize:12, fontFamily:"inherit",
+              fontWeight:700, letterSpacing:"0.06em", cursor:"pointer",
+              background: mode===m ? "var(--tab-active)" : "transparent",
+              color: mode===m ? "var(--tab-active-fg)" : "var(--fg-muted)",
+              boxShadow: mode===m ? "0 1px 3px rgba(0,0,0,0.2)" : "none", transition:"all .15s",
+            }}>{m === "login" ? "Sign In" : "Register"}</button>
           ))}
         </div>
-
-        {/* Server URL */}
         <div className="field">
           <label>Server URL</label>
-          <input
-            type="text"
-            value={server}
-            onChange={e => setServer(e.target.value)}
-            placeholder="https://your-server.onrender.com"
-          />
+          <input type="text" value={server} onChange={e => setServer(e.target.value)} placeholder="https://your-server.onrender.com" />
         </div>
-
-        {/* Username */}
         <div className="field">
           <label>Username</label>
-          <input
-            type="text"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleSubmit()}
-            placeholder="alphanumeric_only"
-            maxLength={30}
-          />
-          {mode === "register" && (
-            <div className="text-xs text-muted mt-8">Letters, numbers, underscores. Max 30 chars.</div>
-          )}
-          {mode === "login" && (
-            <div className="text-xs text-muted mt-8">Enter the username you registered with.</div>
-          )}
+          <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && submit()} placeholder="alphanumeric_only" maxLength={30} />
+          <div className="text-xs text-muted mt-8">
+            {mode === "register" ? "Letters, numbers, underscores. Max 30 chars." : "Enter the username you registered with."}
+          </div>
         </div>
-
         <Alert type="error" msg={err} onClose={() => setErr("")} />
-
-        <button className="btn btn-primary w-full" onClick={handleSubmit} disabled={busy}>
-          {busy
-            ? (mode === "login" ? "Signing in…" : "Registering…")
-            : (mode === "login" ? "Sign In →" : "Create Account →")}
+        <button className="btn btn-primary w-full" onClick={submit} disabled={busy}>
+          {busy ? (mode==="login" ? "Signing in…" : "Registering…") : (mode==="login" ? "Sign In →" : "Create Account →")}
         </button>
-
-        {/* Hint to switch modes */}
-        <div className="text-xs text-muted text-center" style={{ marginTop: 14 }}>
+        <div className="text-xs text-muted text-center" style={{ marginTop:14 }}>
           {mode === "login"
-            ? <>No account yet? <button onClick={() => { setMode("register"); setErr(""); }} style={{ background:"none", border:"none", color:"#1D9E75", cursor:"pointer", fontFamily:"inherit", fontSize:"inherit", fontWeight:700 }}>Register</button></>
-            : <>Already have an account? <button onClick={() => { setMode("login"); setErr(""); }} style={{ background:"none", border:"none", color:"#1D9E75", cursor:"pointer", fontFamily:"inherit", fontSize:"inherit", fontWeight:700 }}>Sign In</button></>
+            ? <>No account? <button onClick={() => { setMode("register"); setErr(""); }} style={{ background:"none", border:"none", color:"#1D9E75", cursor:"pointer", fontFamily:"inherit", fontSize:"inherit", fontWeight:700 }}>Register</button></>
+            : <>Have an account? <button onClick={() => { setMode("login"); setErr(""); }} style={{ background:"none", border:"none", color:"#1D9E75", cursor:"pointer", fontFamily:"inherit", fontSize:"inherit", fontWeight:700 }}>Sign In</button></>
           }
         </div>
       </div>
@@ -512,62 +443,40 @@ function RegisterPage({ onRegister }) {
   );
 }
 
-// ── Player Stats Row ─────────────────────────────────────────────────────────
+// ── Player Stats Row ──────────────────────────────────────────────────────────
 function PlayerStatsRow({ p, api, isMe }) {
   const [stats, setStats]   = useState(null);
   const [open, setOpen]     = useState(false);
   const [loading, setLoad]  = useState(false);
-
   const toggle = async () => {
     if (open) { setOpen(false); return; }
     setOpen(true);
-    if (stats) return; // already loaded
+    if (stats) return;
     setLoad(true);
-    try {
-      const s = await api.getStats(p.player_id);
-      setStats(s);
-    } catch { setStats(null); }
-    finally { setLoad(false); }
+    try { setStats(await api.getStats(p.player_id)); } catch { setStats(null); } finally { setLoad(false); }
   };
-
   return (
-    <div style={{ borderBottom: "0.5px solid var(--divider)" }}>
-      <div
-        onClick={toggle}
-        style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", cursor:"pointer" }}
-      >
-        <div className="avatar" style={{ width:28, height:28, fontSize:11, flexShrink:0 }}>
-          {initials(p.username)}
-        </div>
+    <div style={{ borderBottom:"0.5px solid var(--divider)" }}>
+      <div onClick={toggle} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", cursor:"pointer" }}>
+        <div className="avatar" style={{ width:28, height:28, fontSize:11, flexShrink:0 }}>{initials(p.username)}</div>
         <div style={{ flex:1, minWidth:0 }}>
           <div className="text-xs fw-bold" style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
             {p.username}{isMe ? " (you)" : ""}
           </div>
         </div>
-        {stats && (
-          <div style={{ display:"flex", gap:12, fontSize:11, color:"#888" }}>
-            <span>{stats.wins}W · {stats.losses}L</span>
-            <span>{fmtAcc(stats.accuracy)}</span>
-          </div>
-        )}
-        <span style={{ fontSize:11, color:"#aaa", flexShrink:0 }}>{open ? "▲" : "▼"}</span>
+        {stats && <div style={{ display:"flex", gap:12, fontSize:11, color:"var(--fg-muted)" }}><span>{stats.wins}W · {stats.losses}L</span><span>{fmtAcc(stats.accuracy)}</span></div>}
+        <span style={{ fontSize:11, color:"var(--fg-faint)", flexShrink:0 }}>{open ? "▲" : "▼"}</span>
       </div>
-
       {open && (
         <div style={{ paddingBottom:12, paddingLeft:38 }}>
           {loading && <div className="text-xs text-muted">Loading…</div>}
           {!loading && !stats && <div className="text-xs text-muted">Could not load stats.</div>}
           {!loading && stats && (
             <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              {[
-                ["Games",    stats.games_played],
-                ["Wins",     stats.wins],
-                ["Losses",   stats.losses],
-                ["Shots",    stats.total_shots],
-                ["Hits",     stats.total_hits],
-                ["Accuracy", fmtAcc(stats.accuracy)],
-              ].map(([label, val]) => (
-                <div style={{ background:"var(--stat-bg)", borderRadius:6, padding:"6px 10px", minWidth:60 }}>
+              {[["Games",stats.games_played],["Wins",stats.wins],["Losses",stats.losses],
+                ["Shots",stats.total_shots],["Hits",stats.total_hits],["Accuracy",fmtAcc(stats.accuracy)]
+              ].map(([label,val]) => (
+                <div key={label} style={{ background:"var(--stat-bg)", borderRadius:6, padding:"6px 10px", minWidth:60 }}>
                   <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.07em", color:"var(--stat-label)", marginBottom:2 }}>{label}</div>
                   <div style={{ fontSize:16, fontWeight:700, color:"var(--stat-fg)" }}>{val}</div>
                 </div>
@@ -586,7 +495,7 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
   const [players, setPlayers]   = useState([]);
   const [err, setErr]           = useState("");
   const [showCreate, setShow]   = useState(false);
-  const [lobbyTab, setLobbyTab] = useState("games"); // "games" | "players"
+  const [lobbyTab, setLobbyTab] = useState("games");
   const [gridSize, setGrid]     = useState(10);
   const [maxP, setMaxP]         = useState(2);
   const [creating, setCreating] = useState(false);
@@ -594,38 +503,29 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
   const creatingRef             = useRef(false);
 
   const load = useCallback(async () => {
-    // Only 2 requests total — no per-game detail fetches.
-    // The list endpoints give us everything the lobby needs.
-    const [gamesResult, playersResult] = await Promise.allSettled([
-      api.getGames(),
-      api.getPlayers(),
-    ]);
-
-    if (gamesResult.status === "fulfilled") {
-      const raw = gamesResult.value;
-      setGames(Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []));
-    } else {
-      setErr("Cannot reach server. Check your server URL.");
-    }
-
-    if (playersResult.status === "fulfilled") {
-      const raw = playersResult.value;
-      setPlayers(Array.isArray(raw) ? raw : []);
-    }
+    const [gRes, pRes] = await Promise.allSettled([api.getGames(), api.getPlayers()]);
+    let gameList = [];
+    if (gRes.status === "fulfilled") {
+      const raw = gRes.value;
+      gameList = Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []);
+    } else { setErr("Cannot reach server. Check your server URL."); }
+    if (pRes.status === "fulfilled") setPlayers(Array.isArray(pRes.value) ? pRes.value : []);
+    // Batch-fetch full details: getGames only returns game_id + status
+    if (gameList.length > 0) {
+      const details = await Promise.allSettled(gameList.map(g => api.getGame(g.game_id)));
+      setGames(gameList.map((g, i) => details[i].status === "fulfilled" ? { ...g, ...details[i].value } : g));
+    } else { setGames(gameList); }
   }, [api]);
 
-  // Poll every 6s — lobby doesn't need to be as snappy as an active game
   useEffect(() => { load(); const t = setInterval(load, 6000); return () => clearInterval(t); }, [load]);
 
   const handleCreate = async () => {
     if (creatingRef.current) return;
-    creatingRef.current = true;
-    setCreating(true); setErr("");
+    creatingRef.current = true; setCreating(true); setErr("");
     try {
       const g = await api.createGame({ creator_id: player.player_id, grid_size: gridSize, max_players: maxP });
       await api.joinGame(g.game_id, player.player_id);
-      setShow(false);
-      onOpenGame(g.game_id);
+      setShow(false); onOpenGame(g.game_id);
     } catch (e) { setErr(e.message || "Failed to create game."); }
     finally { creatingRef.current = false; setCreating(false); }
   };
@@ -633,8 +533,7 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
   const handleJoin = async (gameId) => {
     setJoining(gameId); setErr("");
     try {
-      await api.joinGame(gameId, player.player_id);
-      onOpenGame(gameId);
+      await api.joinGame(gameId, player.player_id); onOpenGame(gameId);
     } catch (e) {
       const msg = (e.message || e.error_message || "").toLowerCase();
       if (msg.includes("already")) { onOpenGame(gameId); return; }
@@ -642,63 +541,52 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
     } finally { setJoining(null); }
   };
 
-  // Sort players: most wins first
   const sortedPlayers = [...players].sort((a, b) => (b.wins || 0) - (a.wins || 0));
 
   return (
     <div className="page">
-      {/* Header row */}
-      <div className="flex gap-8 mb-16" style={{ alignItems: "center" }}>
-        <div className="section-title" style={{ margin: 0 }}>Lobby</div>
+      <div className="flex gap-8 mb-16" style={{ alignItems:"center" }}>
+        <div className="section-title" style={{ margin:0 }}>Lobby</div>
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={load}>↻</button>
-          {lobbyTab === "games" && (
-            <button className="btn btn-primary btn-sm" onClick={() => setShow(v => !v)}>+ New Game</button>
-          )}
+          {lobbyTab === "games" && <button className="btn btn-primary btn-sm" onClick={() => setShow(v => !v)}>+ New Game</button>}
         </div>
       </div>
 
       <Alert type="error" msg={err} onClose={() => setErr("")} />
 
-      {/* Active games shortcut */}
       {myGameIds.length > 0 && (
         <div className="mb-16">
           <div className="text-xs text-muted mb-8">YOUR ACTIVE GAMES</div>
           <div className="flex gap-8 flex-wrap">
-            {myGameIds.map(id => (
-              <button key={id} className="btn btn-primary btn-sm" onClick={() => onOpenGame(id)}>→ Game #{id}</button>
-            ))}
+            {myGameIds.map(id => <button key={id} className="btn btn-primary btn-sm" onClick={() => onOpenGame(id)}>→ Game #{id}</button>)}
           </div>
         </div>
       )}
 
-      {/* Tab switcher */}
       <div style={{ display:"flex", background:"var(--tab-bg)", borderRadius:10, padding:3, marginBottom:16, gap:3 }}>
-        {[["games","Games"], ["players","Players"]].map(([key, label]) => (
+        {[["games","Games"],["players","Players"]].map(([key,label]) => (
           <button key={key} onClick={() => setLobbyTab(key)} style={{
-            flex:1, border:"none", borderRadius:8, padding:"6px 0",
-            fontSize:12, fontFamily:"inherit", fontWeight:700,
-            letterSpacing:"0.06em", cursor:"pointer",
-            background: lobbyTab === key ? "var(--tab-active)" : "transparent",
-            color: lobbyTab === key ? "var(--tab-active-fg)" : "var(--fg-muted)",
-            boxShadow: lobbyTab === key ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
-            transition:"all .15s",
-          }}>{label} {key === "games" ? `(${games.length})` : `(${players.length})`}</button>
+            flex:1, border:"none", borderRadius:8, padding:"6px 0", fontSize:12, fontFamily:"inherit",
+            fontWeight:700, letterSpacing:"0.06em", cursor:"pointer",
+            background: lobbyTab===key ? "var(--tab-active)" : "transparent",
+            color: lobbyTab===key ? "var(--tab-active-fg)" : "var(--fg-muted)",
+            boxShadow: lobbyTab===key ? "0 1px 3px rgba(0,0,0,0.2)" : "none", transition:"all .15s",
+          }}>{label} {key==="games" ? `(${games.length})` : `(${players.length})`}</button>
         ))}
       </div>
 
-      {/* Games tab */}
       {lobbyTab === "games" && (
         <>
           {showCreate && (
             <div className="card mb-16">
               <div className="section-title">New Game</div>
               <div className="flex gap-16 flex-wrap mb-12">
-                <div className="flex-1" style={{ minWidth: 120 }}>
+                <div className="flex-1" style={{ minWidth:120 }}>
                   <div className="text-xs text-muted mb-8">Grid Size: {gridSize}×{gridSize}</div>
                   <input type="range" min={5} max={15} value={gridSize} onChange={e => setGrid(+e.target.value)} />
                 </div>
-                <div className="flex-1" style={{ minWidth: 120 }}>
+                <div className="flex-1" style={{ minWidth:120 }}>
                   <div className="text-xs text-muted mb-8">Max Players: {maxP}</div>
                   <input type="range" min={2} max={10} value={maxP} onChange={e => setMaxP(+e.target.value)} />
                 </div>
@@ -708,28 +596,50 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
               </button>
             </div>
           )}
-
           <div className="flex" style={{ flexDirection:"column", gap:8 }}>
-            {games.length === 0 && (
-              <div className="card text-sm text-muted">No games yet. Create one to get started!</div>
-            )}
+            {games.length === 0 && <div className="card text-sm text-muted">No games yet. Create one to get started!</div>}
             {games.map(g => {
               const inGame = myGameIds.includes(g.game_id);
               const open   = g.status === "waiting_setup";
+              const joined = g.players ? g.players.length : null;
+              const gMax   = g.max_players ?? null;
+              const gridSz = g.grid_size ? `${g.grid_size}×${g.grid_size}` : null;
               return (
-                <div key={g.game_id} className="card game-row">
-                  <div className="game-info">
-                    <div className="game-title">Game #{g.game_id}</div>
+                <div key={g.game_id} className="card" style={{ padding:"12px 16px" }}>
+                  <div className="game-row" style={{ marginBottom: gridSz ? 8 : 0 }}>
+                    <div className="game-info"><div className="game-title">Game #{g.game_id}</div></div>
+                    <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
+                    {inGame && <span className="badge badge-joined">JOINED</span>}
+                    {inGame
+                      ? <button className="btn btn-primary btn-sm" onClick={() => onOpenGame(g.game_id)}>Open →</button>
+                      : open
+                        ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>{joining===g.game_id ? "…" : "Join"}</button>
+                        : <button className="btn btn-sm" disabled>Closed</button>}
                   </div>
-                  <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
-                  {inGame && <span className="badge badge-joined">JOINED</span>}
-                  {inGame
-                    ? <button className="btn btn-primary btn-sm" onClick={() => onOpenGame(g.game_id)}>Open →</button>
-                    : open
-                      ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>
-                          {joining === g.game_id ? "…" : "Join"}
-                        </button>
-                      : <button className="btn btn-sm" disabled>Closed</button>}
+                  {/* Stats strip — only rendered once getGame detail has loaded */}
+                  {gridSz && (
+                    <div style={{ display:"flex", gap:16, flexWrap:"wrap", alignItems:"center" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Grid</span>
+                        <span style={{ fontSize:12, fontWeight:700 }}>{gridSz}</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Players</span>
+                        <span style={{ fontSize:12, fontWeight:700 }}>{joined}/{gMax}</span>
+                      </div>
+                      {g.players && g.players.length > 0 && (
+                        <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
+                          <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>In Game</span>
+                          <span style={{ fontSize:12 }}>
+                            {g.players.map((p,i) => {
+                              const name = players.find(pl => pl.player_id === p.player_id)?.username || `#${p.player_id}`;
+                              return <span key={p.player_id}>{i>0?", ":""}{name}</span>;
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -737,13 +647,10 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
         </>
       )}
 
-      {/* Players tab */}
       {lobbyTab === "players" && (
         <div className="card">
           {players.length === 0 && <div className="text-sm text-muted">No players registered yet.</div>}
-          {sortedPlayers.map(p => (
-            <PlayerStatsRow key={p.player_id} p={p} api={api} isMe={p.player_id === player.player_id} />
-          ))}
+          {sortedPlayers.map(p => <PlayerStatsRow key={p.player_id} p={p} api={api} isMe={p.player_id === player.player_id} />)}
         </div>
       )}
     </div>
@@ -752,41 +659,35 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
 
 // ── Ship Placement ────────────────────────────────────────────────────────────
 function PlaceShips({ gameId, player, api, gridSize, onPlaced }) {
-  const [sel, setSel] = useState(new Set());
+  const [sel, setSel]   = useState(new Set());
   const [busy, setBusy] = useState(false);
   const [err, setErr]   = useState("");
-
   const toggle = (r, c) => {
     const k = `${r},${c}`;
     setSel(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
   };
-
   const states = {};
   for (const k of sel) states[k] = "select";
-
   const confirm = async () => {
     if (sel.size < 3) { setErr("Place at least 3 ships."); return; }
     setBusy(true); setErr("");
     try {
-      const ships = [...sel].map(k => { const [row, col] = k.split(",").map(Number); return { row, col }; });
+      const ships = [...sel].map(k => { const [row,col] = k.split(",").map(Number); return { row, col }; });
       await api.placeShips(gameId, player.player_id, ships);
-      onPlaced();
+      onPlaced(ships); // pass coords back up so GamePage can store them locally
     } catch (e) { setErr(e.message || "Placement failed."); }
     finally { setBusy(false); }
   };
-
   return (
     <div>
       <div className="section-title">Place Ships — Game #{gameId}</div>
       <div className="legend mb-8">
-        <div className="legend-item"><div className="legend-dot" style={{ background: "#5DCAA5" }}></div>Your ship</div>
-        <div className="legend-item"><div className="legend-dot" style={{ background: "#eeece7", border: "0.5px solid #ccc" }}></div>Empty</div>
+        <div className="legend-item"><div className="legend-dot" style={{ background:"#5DCAA5" }}></div>Your ship</div>
+        <div className="legend-item"><div className="legend-dot" style={{ background:"var(--cell-empty)", border:"0.5px solid var(--cell-border)" }}></div>Empty</div>
       </div>
       <div className="text-sm text-muted mb-12">Click cells to place ships. Min 3 · Selected: {sel.size}</div>
       <Alert type="error" msg={err} onClose={() => setErr("")} />
-      <div className="mb-12">
-        <Grid size={gridSize} states={states} onCell={toggle} clickable />
-      </div>
+      <div className="mb-12"><Grid size={gridSize} states={states} onCell={toggle} clickable /></div>
       <div className="flex gap-8">
         <button className="btn" onClick={() => setSel(new Set())}>Clear</button>
         <button className="btn btn-primary" onClick={confirm} disabled={busy || sel.size < 3}>
@@ -800,18 +701,12 @@ function PlaceShips({ gameId, player, api, gridSize, onPlaced }) {
 // ── Stats Modal ───────────────────────────────────────────────────────────────
 function StatsModal({ player, api, onClose }) {
   const [stats, setStats] = useState(null);
-  const [err, setErr] = useState("");
-
-  useEffect(() => {
-    api.getStats(player.player_id)
-      .then(setStats)
-      .catch(() => setErr("Could not load stats."));
-  }, []);
-
+  const [err, setErr]     = useState("");
+  useEffect(() => { api.getStats(player.player_id).then(setStats).catch(() => setErr("Could not load stats.")); }, []);
   return (
     <div className="overlay" onClick={onClose}>
       <div className="card modal" onClick={e => e.stopPropagation()}>
-        <div className="fw-bold mb-12" style={{ fontSize: 14 }}>Player Stats — {player.username}</div>
+        <div className="fw-bold mb-12" style={{ fontSize:14 }}>Player Stats — {player.username}</div>
         <Alert type="error" msg={err} />
         {stats ? (
           <>
@@ -830,62 +725,57 @@ function StatsModal({ player, api, onClose }) {
   );
 }
 
-// ── Game ──────────────────────────────────────────────────────────────────────
+// ── Game Page ─────────────────────────────────────────────────────────────────
 function GamePage({ gameId, player, api, onBack }) {
-  const [game, setGame]           = useState(null);
-  const [moves, setMoves]         = useState([]);
-  const [placed, setPlaced]       = useState(false);
-  const [targetId, setTarget]     = useState(null);
-  const [firing, setFiring]       = useState(false);
-  const [err, setErr]             = useState("");
-  const [notice, setNotice]       = useState("");
-  const [showStats, setStats]     = useState(false);
-  const [showHelp, setHelp]       = useState(false);
-  const [playerNames, setNames]   = useState({}); // player_id -> username
-  const firingRef                 = useRef(false);
+  const [game, setGame]               = useState(null);
+  const [moves, setMoves]             = useState([]);
+  // Persist placed + ship cells in localStorage keyed by gameId so they survive
+  // navigating away and back to the game tab, and full page refreshes.
+  const [placed, setPlaced]           = useLocalStorage(`bs_placed_${gameId}`, false);
+  const [myShipCells, setMyShipCells] = useLocalStorage(`bs_ships_${gameId}`, {});
+  const [targetId, setTarget]         = useState(null);
+  const [firing, setFiring]           = useState(false);
+  const [err, setErr]                 = useState("");
+  const [notice, setNotice]           = useState("");
+  const [showStats, setStats]         = useState(false);
+  const [playerNames, setNames]       = useState({});
+  const firingRef                     = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [g, m, allPlayers] = await Promise.all([
-        api.getGame(gameId),
-        api.getMoves(gameId),
-        api.getPlayers(),
-      ]);
+      const [g, m, allPlayers] = await Promise.all([api.getGame(gameId), api.getMoves(gameId), api.getPlayers()]);
       setGame(g);
-      // Build id->username map — coerce all keys to strings to avoid int/string mismatch
       const names = {};
-      const playerList = Array.isArray(allPlayers) ? allPlayers : [];
-      for (const p of playerList) names[String(p.player_id)] = p.username;
-      // Always ensure the current user is in the map
+      for (const p of (Array.isArray(allPlayers) ? allPlayers : [])) names[String(p.player_id)] = p.username;
       names[String(player.player_id)] = player.username;
       setNames(names);
-      // Server returns { game_id, moves: [...] } not a bare array — unwrap it
       const moveList = Array.isArray(m) ? m : (Array.isArray(m?.moves) ? m.moves : []);
       setMoves(moveList);
-      if (g.status !== "waiting_setup") setPlaced(true);
+      // Use the server as authoritative truth: if ships_remaining > 0 the player has
+      // already placed, and if the game has left waiting_setup everyone has placed.
+      // This means placed is restored correctly even after a remount or page refresh.
+      const me = (g.players || []).find(p => p.player_id === player.player_id);
+      if (g.status !== "waiting_setup" || (me && me.ships_remaining > 0)) {
+        setPlaced(true);
+      }
       const others = (g.players || []).filter(p => p.player_id !== player.player_id);
       if (others.length > 0) setTarget(t => t ?? others[0].player_id);
     } catch { setErr("Server unreachable."); }
   }, [api, gameId, player.player_id, player.username]);
 
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 3000);
-    return () => clearInterval(t);
-  }, [refresh]);
+  useEffect(() => { refresh(); const t = setInterval(refresh, 3000); return () => clearInterval(t); }, [refresh]);
 
   const handleFire = async (r, c) => {
-    if (firingRef.current) return; // ignore any re-render-triggered calls
+    if (firingRef.current) return;
     if (!targetId) { setErr("Select a target player first."); return; }
-    firingRef.current = true;
-    setFiring(true); setErr(""); setNotice("");
+    firingRef.current = true; setFiring(true); setErr(""); setNotice("");
     try {
       const res = await api.fireShot(gameId, player.player_id, r, c);
       setNotice(`(${r}, ${c}) — ${(res.result || "fired").toUpperCase()}!`);
       await refresh();
     } catch (e) {
       const msg = e.message || e.error_message || "";
-      if (msg.toLowerCase().includes("turn"))    setErr("Not your turn yet.");
+      if (msg.toLowerCase().includes("turn")) setErr("Not your turn yet.");
       else if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("fired")) setErr("Already fired at that cell.");
       else setErr(msg || "Cannot fire right now.");
     } finally { firingRef.current = false; setFiring(false); }
@@ -900,51 +790,54 @@ function GamePage({ gameId, player, api, onBack }) {
   const opponents = (game.players || []).filter(p => p.player_id !== player.player_id);
   const meInGame  = (game.players || []).find(p => p.player_id === player.player_id);
 
-  // My shots on the attack grid (what I fired at opponents)
+  // My shots on the attack grid
   const myShots = {};
   for (const m of moves) {
-    if (m.player_id === player.player_id) {
+    if (m.player_id === player.player_id)
       myShots[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
-    }
   }
 
-  // Build my own board: show my ship positions, then overlay incoming shots
-  // meInGame.ships contains ship positions if the server returns them,
-  // otherwise fall back to empty (ships only visible after placed)
+  // My board: locally-stored ship positions + incoming shots overlaid
   const myBoardGrid = {};
-  // Overlay ships from meInGame.ships (array of {row,col} or {row,col,is_hit})
-  for (const s of (meInGame?.ships || [])) {
-    const key = `${s.row},${s.col}`;
-    myBoardGrid[key] = s.is_hit ? "ship-hit" : "ship";
-  }
-  // Overlay incoming shots on top (hit/miss take priority to show damage)
+  for (const key of Object.keys(myShipCells)) myBoardGrid[key] = "ship";
   for (const m of moves) {
     if (m.player_id !== player.player_id) {
       const key = `${m.row},${m.col}`;
-      if (m.result === "hit") {
-        myBoardGrid[key] = "ship-hit"; // ship was hit here
-      } else {
-        // Only show miss if there's no ship at this cell (shouldn't happen but safety)
-        if (!myBoardGrid[key] || myBoardGrid[key] === "empty") {
-          myBoardGrid[key] = "miss";
-        }
-      }
+      if (m.result === "hit") myBoardGrid[key] = "ship-hit";
+      else if (!myBoardGrid[key]) myBoardGrid[key] = "miss";
     }
   }
 
   return (
     <div className="page">
       {/* Header */}
-      <div className="flex gap-8 mb-16 flex-wrap" style={{ alignItems: "center" }}>
+      <div className="flex gap-8 mb-12 flex-wrap" style={{ alignItems:"center" }}>
         <button className="btn btn-sm" onClick={onBack}>← Lobby</button>
-        <span className="fw-bold" style={{ fontSize: 14 }}>Game #{gameId}</span>
-        <span className={`badge ${statusBadge(game.status)} ${game.status === "playing" ? "pulse" : ""}`}>
-          {statusLabel(game.status)}
-        </span>
-        {myTurn && !isWaiting && !isDone && <span className="badge badge-turn">YOUR TURN ▶</span>}
+        <span className="fw-bold" style={{ fontSize:14 }}>Game #{gameId}</span>
+        <span className={`badge ${statusBadge(game.status)} ${game.status==="playing"?"pulse":""}`}>{statusLabel(game.status)}</span>
+        {myTurn && !isWaiting && !isDone && <span className="badge badge-turn pulse">YOUR TURN ▶</span>}
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={() => setStats(true)}>Stats</button>
-          <button className="btn btn-sm" onClick={() => setHelp(true)}>?</button>
+        </div>
+      </div>
+
+      {/* Game info strip — always visible */}
+      <div className="card mb-12" style={{ padding:"10px 16px" }}>
+        <div style={{ display:"flex", gap:20, flexWrap:"wrap", alignItems:"center" }}>
+          <div>
+            <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Grid</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>{gridSize}×{gridSize}</div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Players</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>{(game.players||[]).length}/{game.max_players ?? "?"}</div>
+          </div>
+          {!isWaiting && (
+            <div>
+              <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Active</div>
+              <div style={{ fontSize:14, fontWeight:700 }}>{(game.players||[]).filter(p => p.ships_remaining > 0).length}</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -955,94 +848,134 @@ function GamePage({ gameId, player, api, onBack }) {
       {isDone && (
         <div className="winner-banner mb-16">
           <div className="winner-text">
-            {!game.winner_id
-              ? "🏆 Game Over!"
+            {!game.winner_id ? "🏆 Game Over!"
               : game.winner_id === player.player_id || String(game.winner_id) === String(player.player_id)
                 ? "🏆 You Win!"
-                : `🏆 ${playerNames[String(game.winner_id)] || player.username} Wins!`}
+                : `🏆 ${playerNames[String(game.winner_id)] || "Opponent"} Wins!`}
           </div>
         </div>
       )}
 
-      {/* Setup: place ships */}
-      {isWaiting && !placed && meInGame && (
-        <div className="card mb-16">
-          <PlaceShips gameId={gameId} player={player} api={api} gridSize={gridSize}
-            onPlaced={() => { setPlaced(true); refresh(); }} />
+      {/* ── SETUP PHASE ─────────────────────────────────────────────────────── */}
+      {isWaiting && (
+        <div className="mb-16">
+          {/* Ship placement (only if I'm in the game and haven't placed yet) */}
+          {!placed && meInGame && (
+            <div className="card mb-12">
+              <PlaceShips gameId={gameId} player={player} api={api} gridSize={gridSize}
+                onPlaced={(ships) => {
+                  // Store locally — server doesn't return ships in getGame responses
+                  const cells = {};
+                  for (const s of ships) cells[`${s.row},${s.col}`] = true;
+                  setMyShipCells(cells);
+                  setPlaced(true);
+                  refresh();
+                }} />
+            </div>
+          )}
+
+          {/* Player roster with ready/waiting status */}
+          <div className="section-title">Players in this Game</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {(game.players || []).map(p => {
+              const isMe  = p.player_id === player.player_id;
+              const name  = playerNames[String(p.player_id)] || `#${p.player_id}`;
+              // ships_remaining > 0 is the server-authoritative signal for everyone.
+              // For self, also OR in the local `placed` flag so the UI updates
+              // immediately after the confirm button is clicked, before the next poll.
+              const hasPlaced = (p.ships_remaining > 0) || (isMe && placed);
+              return (
+                <div key={p.player_id} className="surface" style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div className="avatar" style={{ width:28, height:28, fontSize:11, flexShrink:0 }}>{initials(name)}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div className="text-xs fw-bold">{name}{isMe ? " (you)" : ""}</div>
+                    <div className="text-xs text-muted">{hasPlaced ? "✓ Ships placed" : "⏳ Placing ships…"}</div>
+                  </div>
+                  {hasPlaced
+                    ? <span className="badge badge-win">READY</span>
+                    : <span className="badge badge-open">WAITING</span>}
+                </div>
+              );
+            })}
+            {/* Empty slots */}
+            {Array.from({ length: Math.max(0, (game.max_players||0) - (game.players||[]).length) }).map((_,i) => (
+              <div key={`empty-${i}`} className="surface" style={{ display:"flex", alignItems:"center", gap:10, opacity:0.4 }}>
+                <div style={{ width:28, height:28, borderRadius:"50%", background:"var(--cell-border)", flexShrink:0 }} />
+                <div className="text-xs text-muted">Waiting for player…</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Status message after I've placed — persists on rejoin */}
+          {placed && meInGame && (() => {
+            const notReady = (game.players||[]).filter(p =>
+              p.player_id !== player.player_id && !(p.ships_remaining > 0)
+            ).length;
+            return notReady > 0 ? (
+              <div className="alert alert-success mt-8" style={{ marginBottom:0 }}>
+                ✓ Your ships are placed! Waiting for {notReady} opponent{notReady > 1 ? "s" : ""} to place their ships…
+              </div>
+            ) : (
+              <div className="alert alert-success mt-8" style={{ marginBottom:0 }}>
+                ✓ All players ready — game starting soon…
+              </div>
+            );
+          })()}
+
+          {!meInGame && <div className="text-sm text-muted mt-8">You are observing this game.</div>}
         </div>
-      )}
-      {isWaiting && placed && (
-        <div className="card mb-16 text-sm text-muted">
-          ✓ Ships placed! Waiting for all players to be ready… (auto-refreshing)
-        </div>
-      )}
-      {isWaiting && !meInGame && (
-        <div className="card mb-16 text-sm text-muted">You are observing this game.</div>
       )}
 
-      {/* Playing */}
+      {/* ── PLAYING PHASE ────────────────────────────────────────────────────── */}
       {!isWaiting && (
         <div className="boards mb-16">
-          {/* My board */}
+          {/* My board — ships + incoming shots */}
           <div className="board-panel">
             <div className="section-title">Your Board</div>
-            <div className="card" style={{ overflowX: "auto" }}>
+            <div className="card">
               <div className="legend mb-8">
-                <div className="legend-item"><div className="legend-dot" style={{ background: "#1D9E75" }}></div>Your ship</div>
-                <div className="legend-item"><div className="legend-dot" style={{ background: "#D85A30" }}></div>Hit</div>
-                <div className="legend-item"><div className="legend-dot" style={{ background: "#378ADD" }}></div>Miss</div>
+                <div className="legend-item"><div className="legend-dot" style={{ background:"#1D9E75" }}></div>Ship</div>
+                <div className="legend-item"><div className="legend-dot" style={{ background:"#D85A30" }}></div>Hit</div>
+                <div className="legend-item"><div className="legend-dot" style={{ background:"#378ADD" }}></div>Miss</div>
               </div>
               <Grid size={gridSize} states={myBoardGrid} />
-              <div className="text-xs text-muted mt-8">
-                Ships remaining: {meInGame?.ships_remaining ?? "?"}
-              </div>
+              <div className="text-xs text-muted mt-8">Ships remaining: {meInGame?.ships_remaining ?? "?"}</div>
             </div>
           </div>
 
-          {/* Targeting */}
+          {/* Attack grid */}
           <div className="board-panel">
-            <div className="flex gap-8 flex-wrap mb-8" style={{ alignItems: "center" }}>
-              <div className="section-title" style={{ margin: 0 }}>Fire At:</div>
+            <div className="flex gap-8 flex-wrap mb-8" style={{ alignItems:"center" }}>
+              <div className="section-title" style={{ margin:0 }}>Fire At:</div>
               {opponents.map(op => (
-                <button
-                  key={op.player_id}
+                <button key={op.player_id}
                   className={`btn btn-sm ${targetId === op.player_id ? "btn-primary" : ""}`}
-                  onClick={() => setTarget(op.player_id)}
-                >
+                  onClick={() => setTarget(op.player_id)}>
                   {playerNames[String(op.player_id)] || `#${op.player_id}`} ({op.ships_remaining} ▪)
                 </button>
               ))}
             </div>
-            <div className="card" style={{ overflowX: "auto" }}>
+            <div className="card">
               {targetId ? (
                 <>
                   <div className="text-xs text-muted mb-8">
                     Target: {playerNames[String(targetId)] || `Player #${targetId}`} ·
-                    {myTurn && !isDone
-                      ? " Click a cell to fire!"
-                      : isDone ? " Game over." : " Wait for your turn."}
+                    {myTurn && !isDone ? " Click a cell to fire!" : isDone ? " Game over." : " Wait for your turn."}
                   </div>
                   <div className="legend mb-8">
-                    <div className="legend-item"><div className="legend-dot" style={{ background: "#D85A30" }}></div>Hit</div>
-                    <div className="legend-item"><div className="legend-dot" style={{ background: "#378ADD" }}></div>Miss</div>
-                    <div className="legend-item"><div className="legend-dot" style={{ background: "var(--cell-empty)", border: "0.5px solid var(--cell-border)" }}></div>Unknown</div>
+                    <div className="legend-item"><div className="legend-dot" style={{ background:"#D85A30" }}></div>Hit</div>
+                    <div className="legend-item"><div className="legend-dot" style={{ background:"#378ADD" }}></div>Miss</div>
+                    <div className="legend-item"><div className="legend-dot" style={{ background:"var(--cell-empty)", border:"0.5px solid var(--cell-border)" }}></div>Unknown</div>
                   </div>
-                  <Grid
-                    size={gridSize}
-                    states={myShots}
-                    onCell={handleFire}
-                    clickable={myTurn && !isDone && !firing}
-                  />
+                  <Grid size={gridSize} states={myShots} onCell={handleFire} clickable={myTurn && !isDone && !firing} />
                 </>
-              ) : (
-                <div className="text-sm text-muted">Select a target player above.</div>
-              )}
+              ) : <div className="text-sm text-muted">Select a target player above.</div>}
             </div>
           </div>
         </div>
       )}
 
-      {/* All opponents summary */}
+      {/* Players summary (playing phase) */}
       {!isWaiting && opponents.length > 0 && (
         <div className="mb-16">
           <div className="section-title">Players</div>
@@ -1052,13 +985,11 @@ function GamePage({ gameId, player, api, onBack }) {
               const isTurn = game.current_turn_player_id === p.player_id;
               const name   = playerNames[String(p.player_id)] || `#${p.player_id}`;
               return (
-                <div key={p.player_id} className="surface" style={{ minWidth: 130 }}>
-                  <div className="flex gap-8" style={{ alignItems: "center" }}>
-                    <div className="avatar" style={{ width: 26, height: 26, fontSize: 10 }}>
-                      {initials(name)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="text-xs fw-bold" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div key={p.player_id} className="surface" style={{ minWidth:130 }}>
+                  <div className="flex gap-8" style={{ alignItems:"center" }}>
+                    <div className="avatar" style={{ width:26, height:26, fontSize:10 }}>{initials(name)}</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div className="text-xs fw-bold" style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                         {name}{isMe ? " (you)" : ""}
                       </div>
                       <div className="text-xs text-muted">{p.ships_remaining} ships left</div>
@@ -1082,42 +1013,13 @@ function GamePage({ gameId, player, api, onBack }) {
               <span className="move-time">{fmtTime(m.timestamp || m.created_at)}</span>
               <span>{playerNames[String(m.player_id)] || `P#${m.player_id}`}</span>
               <span className="text-muted">fired ({m.row},{m.col})</span>
-              <span className={`badge ${m.result === "hit" ? "badge-hit" : "badge-miss"}`}>
-                {(m.result || "").toUpperCase()}
-              </span>
+              <span className={`badge ${m.result==="hit"?"badge-hit":"badge-miss"}`}>{(m.result||"").toUpperCase()}</span>
             </div>
           ))}
         </div>
       </div>
 
       {showStats && <StatsModal player={player} api={api} onClose={() => setStats(false)} />}
-      {showHelp && (
-        <div className="overlay" onClick={() => setHelp(false)}>
-          <div className="card modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-            <div className="fw-bold mb-12" style={{ fontSize: 14 }}>How to Play</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
-              <div><span className="fw-bold">1. Place Ships</span> — Click cells on the grid to place at least 3 ships. All players must place ships before the game begins.</div>
-              <div><span className="fw-bold">2. Take Turns Firing</span> — When it's your turn, click a cell on the attack grid to fire. You'll see a hit or miss result immediately.</div>
-              <div><span className="fw-bold">3. Win</span> — Sink all of your opponents' ships to win. Last player with ships remaining wins.</div>
-              <div style={{ marginTop: 4, padding: "8px 12px", background: "var(--surface-bg)", borderRadius: 8, fontSize: 12 }}>
-                <div className="fw-bold mb-8">Color Guide</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#1D9E75" }}></div>Your ship
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#D85A30" }}></div>Hit
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#378ADD" }}></div>Miss
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button className="btn mt-12" onClick={() => setHelp(false)}>Close</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -1128,18 +1030,14 @@ class ErrorBoundary extends React.Component {
   static getDerivedStateFromError(err) { return { err }; }
   render() {
     if (this.state.err) return (
-      <div style={{ maxWidth: 480, margin: "3rem auto", padding: "0 1rem" }}>
+      <div style={{ maxWidth:480, margin:"3rem auto", padding:"0 1rem" }}>
         <div className="card">
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: "#791f1f" }}>Something went wrong</div>
-          <div className="alert alert-error" style={{ marginBottom: 12 }}>
-            {this.state.err.message || String(this.state.err)}
-          </div>
-          <div className="text-sm text-muted" style={{ marginBottom: 12 }}>
+          <div style={{ fontSize:14, fontWeight:700, marginBottom:8, color:"#D85A30" }}>Something went wrong</div>
+          <div className="alert alert-error" style={{ marginBottom:12 }}>{this.state.err.message || String(this.state.err)}</div>
+          <div className="text-sm text-muted" style={{ marginBottom:12 }}>
             This is usually caused by unexpected data from the server. Try refreshing, or go back to the lobby.
           </div>
-          <button className="btn btn-primary" onClick={() => { this.setState({ err: null }); window.location.reload(); }}>
-            Reload page
-          </button>
+          <button className="btn btn-primary" onClick={() => { this.setState({ err:null }); window.location.reload(); }}>Reload page</button>
         </div>
       </div>
     );
@@ -1149,10 +1047,22 @@ class ErrorBoundary extends React.Component {
 
 // ── App Shell ─────────────────────────────────────────────────────────────────
 function App() {
-  const [player, setPlayer]       = useLocalStorage("bs_player", null);
-  const [server, setServer]       = useLocalStorage("bs_server", window.location.origin);
-  const [myGameIds, setMyGames]   = useLocalStorage("bs_games", []);
-  const [tab, setTab]             = useState("lobby");
+  const [player, setPlayer]     = useLocalStorage("bs_player", null);
+  const [server, setServer]     = useLocalStorage("bs_server", window.location.origin);
+  const [myGameIds, setMyGames] = useLocalStorage("bs_games", []);
+  const [tab, setTab]           = useState("lobby");
+  const [theme, setTheme]       = useLocalStorage("bs_theme", "auto"); // "auto" | "light" | "dark"
+
+  // Apply theme attribute to <html> so CSS [data-theme] selectors kick in
+  useEffect(() => {
+    const html = document.documentElement;
+    if (theme === "light" || theme === "dark") html.setAttribute("data-theme", theme);
+    else html.removeAttribute("data-theme"); // let OS preference win
+  }, [theme]);
+
+  const cycleTheme = () => setTheme(t => t === "auto" ? "light" : t === "light" ? "dark" : "auto");
+  const themeIcon  = theme === "dark" ? "☾" : theme === "light" ? "☀" : "◑";
+  const themeTitle = theme === "dark" ? "Dark" : theme === "light" ? "Light" : "Auto (OS)";
 
   const api = React.useMemo(() => makeApi(server), [server]);
 
@@ -1161,17 +1071,8 @@ function App() {
     setTab(`game:${id}`);
   };
 
-  const handleRegister = (p, srv) => {
-    setPlayer(p);
-    setServer(srv);
-  };
-
-  const logout = () => {
-    setPlayer(null);
-    setMyGames([]);
-    setTab("lobby");
-    localStorage.clear();
-  };
+  const handleRegister = (p, srv) => { setPlayer(p); setServer(srv); };
+  const logout = () => { setPlayer(null); setMyGames([]); setTab("lobby"); localStorage.clear(); };
 
   if (!player) return <RegisterPage onRegister={handleRegister} />;
 
@@ -1180,14 +1081,17 @@ function App() {
   return (
     <div>
       <nav className="nav">
-        <div className="logo"><span className="logo-icon">⊕</span> BATTLESHIP</div>
-        <button className={`btn btn-sm btn-tab ${tab === "lobby" ? "active" : ""}`} onClick={() => setTab("lobby")}>Lobby</button>
+        <div className="logo"><span style={{ fontSize:18 }}>⊕</span> BATTLESHIP</div>
+        <button className={`btn btn-sm btn-tab ${tab==="lobby"?"active":""}`} onClick={() => setTab("lobby")}>Lobby</button>
         {myGameIds.map(id => (
-          <button key={id} className={`btn btn-sm btn-tab ${tab === `game:${id}` ? "active" : ""}`} onClick={() => setTab(`game:${id}`)}>
-            #{id}
-          </button>
+          <button key={id} className={`btn btn-sm btn-tab ${tab===`game:${id}`?"active":""}`} onClick={() => setTab(`game:${id}`)}>#{id}</button>
         ))}
         <div className="nav-spacer" />
+        {/* Theme toggle: Auto → Light → Dark → Auto */}
+        <button className="btn btn-sm" onClick={cycleTheme} title={`Theme: ${themeTitle} — click to cycle`}
+          style={{ fontSize:15, padding:"3px 9px", lineHeight:1 }}>
+          {themeIcon}
+        </button>
         <div className="user-chip">
           <div className="avatar">{initials(player.username)}</div>
           <span>{player.username}</span>
@@ -1196,9 +1100,7 @@ function App() {
       </nav>
 
       {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} />}
-      {activeGameId && (
-        <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} />
-      )}
+      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} />}
     </div>
   );
 }
