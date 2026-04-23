@@ -674,7 +674,7 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
 
       {/* Tab switcher */}
       <div style={{ display:"flex", background:"var(--tab-bg)", borderRadius:10, padding:3, marginBottom:16, gap:3 }}>
-        {[["games","Games"], ["players","Players"], ["leaderboard","Leaderboard"]].map(([key, label]) => (
+        {[["games","Games"], ["players","Players"]].map(([key, label]) => (
           <button key={key} onClick={() => setLobbyTab(key)} style={{
             flex:1, border:"none", borderRadius:8, padding:"6px 0",
             fontSize:12, fontFamily:"inherit", fontWeight:700,
@@ -683,7 +683,7 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
             color: lobbyTab === key ? "var(--tab-active-fg)" : "var(--fg-muted)",
             boxShadow: lobbyTab === key ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
             transition:"all .15s",
-          }}>{label} {key === "games" ? `(${games.length})` : key === "players" ? `(${players.length})` : ""}</button>
+          }}>{label} {key === "games" ? `(${games.length})` : `(${players.length})`}</button>
         ))}
       </div>
 
@@ -744,46 +744,6 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
           {sortedPlayers.map(p => (
             <PlayerStatsRow key={p.player_id} p={p} api={api} isMe={p.player_id === player.player_id} />
           ))}
-        </div>
-      )}
-      {/* Leaderboard tab */}
-      {lobbyTab === "leaderboard" && (
-        <div className="card">
-          <div className="section-title" style={{ marginBottom: 12 }}>Top Players by Wins</div>
-          {players.length === 0 && <div className="text-sm text-muted">No players yet.</div>}
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {[...players]
-              .sort((a, b) => (b.wins || 0) - (a.wins || 0))
-              .map((p, i) => (
-                <div key={p.player_id} style={{
-                  display: "flex", alignItems: "center", gap: 12,
-                  padding: "10px 0", borderBottom: "0.5px solid var(--divider)"
-                }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: "50%",
-                    background: i === 0 ? "#FFD700" : i === 1 ? "#C0C0C0" : i === 2 ? "#CD7F32" : "var(--surface-bg)",
-                    color: i < 3 ? "#1a1a1a" : "var(--fg-muted)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 11, fontWeight: 700, flexShrink: 0
-                  }}>
-                    {i + 1}
-                  </div>
-                  <div className="avatar" style={{ width: 28, height: 28, fontSize: 11, flexShrink: 0 }}>
-                    {initials(p.username)}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="text-xs fw-bold" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {p.username}{p.player_id === player.player_id ? " (you)" : ""}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--fg-muted)" }}>
-                    <span>{p.wins || 0}W</span>
-                    <span>{p.losses || 0}L</span>
-                    <span>{p.accuracy !== undefined ? fmtAcc(p.accuracy) : "0.0%"}</span>
-                  </div>
-                </div>
-              ))}
-          </div>
         </div>
       )}
     </div>
