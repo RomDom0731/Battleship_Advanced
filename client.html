@@ -840,6 +840,7 @@ function GamePage({ gameId, player, api, onBack }) {
   const [err, setErr]             = useState("");
   const [notice, setNotice]       = useState("");
   const [showStats, setStats]     = useState(false);
+  const [showHelp, setHelp]       = useState(false);
   const [playerNames, setNames]   = useState({}); // player_id -> username
   const firingRef                 = useRef(false);
 
@@ -943,6 +944,7 @@ function GamePage({ gameId, player, api, onBack }) {
         {myTurn && !isWaiting && !isDone && <span className="badge badge-turn">YOUR TURN ▶</span>}
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={() => setStats(true)}>Stats</button>
+          <button className="btn btn-sm" onClick={() => setHelp(true)}>?</button>
         </div>
       </div>
 
@@ -1089,6 +1091,33 @@ function GamePage({ gameId, player, api, onBack }) {
       </div>
 
       {showStats && <StatsModal player={player} api={api} onClose={() => setStats(false)} />}
+      {showHelp && (
+        <div className="overlay" onClick={() => setHelp(false)}>
+          <div className="card modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div className="fw-bold mb-12" style={{ fontSize: 14 }}>How to Play</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+              <div><span className="fw-bold">1. Place Ships</span> — Click cells on the grid to place at least 3 ships. All players must place ships before the game begins.</div>
+              <div><span className="fw-bold">2. Take Turns Firing</span> — When it's your turn, click a cell on the attack grid to fire. You'll see a hit or miss result immediately.</div>
+              <div><span className="fw-bold">3. Win</span> — Sink all of your opponents' ships to win. Last player with ships remaining wins.</div>
+              <div style={{ marginTop: 4, padding: "8px 12px", background: "var(--surface-bg)", borderRadius: 8, fontSize: 12 }}>
+                <div className="fw-bold mb-8">Color Guide</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#1D9E75" }}></div>Your ship
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#D85A30" }}></div>Hit
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "#378ADD" }}></div>Miss
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button className="btn mt-12" onClick={() => setHelp(false)}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
