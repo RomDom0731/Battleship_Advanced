@@ -346,10 +346,25 @@ function Cell({ state, size, onClick }) {
 }
 
 function Grid({ size, states = {}, onCell, clickable }) {
+  const sz = Math.max(18, Math.min(38, Math.floor(420 / size)));
+  const labelStyle = {
+    width: sz, height: sz, display: "flex", alignItems: "center",
+    justifyContent: "center", fontSize: sz * 0.38, color: "var(--fg-muted)",
+    fontWeight: 700, flexShrink: 0,
+  };
   return (
     <div className="grid-wrap">
+      {/* Column number header */}
+      <div className="grid-row">
+        <div style={{ ...labelStyle, visibility: "hidden" }} />
+        {Array.from({ length: size }, (_, c) => (
+          <div key={c} style={labelStyle}>{c + 1}</div>
+        ))}
+      </div>
       {Array.from({ length: size }, (_, r) => (
         <div key={r} className="grid-row">
+          {/* Row letter label */}
+          <div style={labelStyle}>{String.fromCharCode(65 + r)}</div>
           {Array.from({ length: size }, (_, c) => {
             const key = `${r},${c}`;
             return (
