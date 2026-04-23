@@ -210,12 +210,21 @@ return; // Ensure no other output follows
 // GET /api/games
 function getGames(): void {
     try {
-        $db   = getDB();
-        $stmt = $db->query('SELECT game_id, status FROM games ORDER BY game_id ASC');
+        $db = getDB();
+        $stmt = $db->prepare('
+            SELECT g.game_id, g.status, g.grid_size, COUNT(gp.player_id) as player_count
+            FROM games g
+            LEFT JOIN game_players gp ON g.game_id = gp.game_id
+            GROUP BY g.game_id
+            ORDER BY g.game_id ASC
+        ');
+        $stmt->execute();
         http_response_code(200);
-        echo json_encode(array_map(fn($r) => [
-            'game_id' => (int)$r['game_id'],
-            'status'  => $r['status'],
+        echo json_encode(array_map(fn($g) => [
+            'game_id'      => (int)$g['game_id'],
+            'status'       => $g['status'],
+            'grid_size'    => (int)$g['grid_size'],
+            'player_count' => (int)$g['player_count'],
         ], $stmt->fetchAll()));
     } catch (PDOException $e) {
         http_response_code(500);
