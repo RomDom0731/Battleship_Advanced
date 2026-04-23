@@ -7,7 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <style>
-  :root {
+  /* Light theme (default) */
+  :root, [data-theme="light"] {
     --bg:         #f4f3ef;
     --fg:         #1a1a1a;
     --fg-muted:   #666;
@@ -31,12 +32,38 @@
     --cell-empty: #eeece7;
     --cell-border:#ddd;
   }
+  /* Dark theme — applied via data-theme="dark" on <html> */
+  [data-theme="dark"] {
+    --bg:         #1a1a18;
+    --fg:         #e8e6e0;
+    --fg-muted:   #999;
+    --fg-faint:   #555;
+    --card-bg:    #252522;
+    --card-border:#3a3a36;
+    --surface-bg: #2e2e2a;
+    --input-bg:   #2e2e2a;
+    --input-border:#4a4a44;
+    --nav-bg:     #252522;
+    --nav-border: #3a3a36;
+    --tab-bg:     #1e1e1c;
+    --tab-active: #333330;
+    --tab-active-fg: #e8e6e0;
+    --divider:    #333330;
+    --stat-bg:    #2e2e2a;
+    --stat-fg:    #e8e6e0;
+    --stat-label: #999;
+    --btn-border: #4a4a44;
+    --btn-hover:  rgba(255,255,255,0.07);
+    --cell-empty: #2a2a27;
+    --cell-border:#3a3a36;
+  }
+  /* Also respect OS preference when no manual override is set */
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme]) {
       --bg:         #1a1a18;
       --fg:         #e8e6e0;
       --fg-muted:   #999;
-      --fg-faint:   #666;
+      --fg-faint:   #555;
       --card-bg:    #252522;
       --card-border:#3a3a36;
       --surface-bg: #2e2e2a;
@@ -149,24 +176,34 @@
   .badge-hit    { background: #fcebeb; color: #a32d2d; }
   .badge-miss   { background: #e6f1fb; color: #185fa5; }
   .badge-win    { background: #e1f5ee; color: #0f6e56; }
+  [data-theme="dark"] .badge-open   { background: #0d3326; color: #5dcaa5; }
+  [data-theme="dark"] .badge-live   { background: #1a2e0d; color: #8dc850; }
+  [data-theme="dark"] .badge-done   { background: #3a1508; color: #e8845c; }
+  [data-theme="dark"] .badge-turn   { background: #3a2205; color: #e8a840; }
+  [data-theme="dark"] .badge-joined { background: #0d2240; color: #5b9ee8; }
+  [data-theme="dark"] .badge-hit    { background: #3a0d0d; color: #e87070; }
+  [data-theme="dark"] .badge-miss   { background: #0d2240; color: #5b9ee8; }
+  [data-theme="dark"] .badge-win    { background: #0d3326; color: #5dcaa5; }
   @media (prefers-color-scheme: dark) {
-    .badge-open   { background: #0d3326; color: #5dcaa5; }
-    .badge-live   { background: #1a2e0d; color: #8dc850; }
-    .badge-done   { background: #3a1508; color: #e8845c; }
-    .badge-turn   { background: #3a2205; color: #e8a840; }
-    .badge-joined { background: #0d2240; color: #5b9ee8; }
-    .badge-hit    { background: #3a0d0d; color: #e87070; }
-    .badge-miss   { background: #0d2240; color: #5b9ee8; }
-    .badge-win    { background: #0d3326; color: #5dcaa5; }
+    :root:not([data-theme]) .badge-open   { background: #0d3326; color: #5dcaa5; }
+    :root:not([data-theme]) .badge-live   { background: #1a2e0d; color: #8dc850; }
+    :root:not([data-theme]) .badge-done   { background: #3a1508; color: #e8845c; }
+    :root:not([data-theme]) .badge-turn   { background: #3a2205; color: #e8a840; }
+    :root:not([data-theme]) .badge-joined { background: #0d2240; color: #5b9ee8; }
+    :root:not([data-theme]) .badge-hit    { background: #3a0d0d; color: #e87070; }
+    :root:not([data-theme]) .badge-miss   { background: #0d2240; color: #5b9ee8; }
+    :root:not([data-theme]) .badge-win    { background: #0d3326; color: #5dcaa5; }
   }
 
   /* Alerts */
   .alert { border-radius: 8px; padding: 8px 12px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
   .alert-error   { background: #fcebeb; border: 0.5px solid #f09595; color: #791f1f; }
   .alert-success { background: #e1f5ee; border: 0.5px solid #5dcaa5; color: #085041; }
+  [data-theme="dark"] .alert-error   { background: #3a1515; border-color: #8b3535; color: #f09595; }
+  [data-theme="dark"] .alert-success { background: #0d2e22; border-color: #2a7a5a; color: #5dcaa5; }
   @media (prefers-color-scheme: dark) {
-    .alert-error   { background: #3a1515; border-color: #8b3535; color: #f09595; }
-    .alert-success { background: #0d2e22; border-color: #2a7a5a; color: #5dcaa5; }
+    :root:not([data-theme]) .alert-error   { background: #3a1515; border-color: #8b3535; color: #f09595; }
+    :root:not([data-theme]) .alert-success { background: #0d2e22; border-color: #2a7a5a; color: #5dcaa5; }
   }
   .close-btn { background: none; border: none; cursor: pointer; color: inherit; font-size: 18px; line-height: 1; flex-shrink: 0; }
 
@@ -329,14 +366,11 @@ function Alert({ type = "error", msg, onClose }) {
   );
 }
 
-function Cell({ state, size, onClick }) {
-  // Scale cell size down for larger grids so they fit without overlapping
-  const sz = Math.max(18, Math.min(38, Math.floor(420 / size)));
+function Cell({ state, sz, onClick }) {
   const cls = ["cell", `cell-${state || "empty"}`, onClick ? "cell-clickable" : ""].join(" ");
-  const icon = state === "hit" ? "✕"
+  const icon = state === "hit" || state === "ship-hit" ? "✕"
              : state === "miss" ? "·"
              : state === "ship" || state === "select" ? "▪"
-             : state === "ship-hit" ? "✕"
              : "";
   return (
     <div className={cls} style={{ width: sz, height: sz, fontSize: sz * 0.42 }} onClick={onClick}>
@@ -346,8 +380,26 @@ function Cell({ state, size, onClick }) {
 }
 
 function Grid({ size, states = {}, onCell, clickable }) {
+  const wrapRef = React.useRef(null);
+  const [cellSz, setCellSz] = React.useState(32);
+
+  React.useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const compute = () => {
+      const available = el.parentElement ? el.parentElement.clientWidth - 32 : 300;
+      // Fit all cells; min 16px, max 38px
+      const sz = Math.max(16, Math.min(38, Math.floor(available / size)));
+      setCellSz(sz);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el.parentElement || el);
+    return () => ro.disconnect();
+  }, [size]);
+
   return (
-    <div className="grid-wrap">
+    <div ref={wrapRef} style={{ display: "inline-block" }}>
       {Array.from({ length: size }, (_, r) => (
         <div key={r} className="grid-row">
           {Array.from({ length: size }, (_, c) => {
@@ -356,7 +408,7 @@ function Grid({ size, states = {}, onCell, clickable }) {
               <Cell
                 key={c}
                 state={states[key]}
-                size={size}
+                sz={cellSz}
                 onClick={clickable ? () => onCell(r, c) : undefined}
               />
             );
@@ -699,22 +751,54 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
               <div className="card text-sm text-muted">No games yet. Create one to get started!</div>
             )}
             {games.map(g => {
-              const inGame = myGameIds.includes(g.game_id);
-              const open   = g.status === "waiting_setup";
+              const inGame    = myGameIds.includes(g.game_id);
+              const open      = g.status === "waiting_setup";
+              const joined    = g.players_joined ?? (g.players ? g.players.length : "?");
+              const maxP      = g.max_players ?? "?";
+              const gridSz    = g.grid_size ? `${g.grid_size}×${g.grid_size}` : "?";
+              const totalReg  = players.length;
               return (
-                <div key={g.game_id} className="card game-row">
-                  <div className="game-info">
-                    <div className="game-title">Game #{g.game_id}</div>
+                <div key={g.game_id} className="card" style={{ padding: "12px 16px" }}>
+                  <div className="game-row" style={{ marginBottom: 8 }}>
+                    <div className="game-info">
+                      <div className="game-title">Game #{g.game_id}</div>
+                    </div>
+                    <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
+                    {inGame && <span className="badge badge-joined">JOINED</span>}
+                    {inGame
+                      ? <button className="btn btn-primary btn-sm" onClick={() => onOpenGame(g.game_id)}>Open →</button>
+                      : open
+                        ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>
+                            {joining === g.game_id ? "…" : "Join"}
+                          </button>
+                        : <button className="btn btn-sm" disabled>Closed</button>}
                   </div>
-                  <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
-                  {inGame && <span className="badge badge-joined">JOINED</span>}
-                  {inGame
-                    ? <button className="btn btn-primary btn-sm" onClick={() => onOpenGame(g.game_id)}>Open →</button>
-                    : open
-                      ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>
-                          {joining === g.game_id ? "…" : "Join"}
-                        </button>
-                      : <button className="btn btn-sm" disabled>Closed</button>}
+                  {/* Game stats row */}
+                  <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Grid</span>
+                      <span style={{ fontSize:12, fontWeight:700 }}>{gridSz}</span>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Players</span>
+                      <span style={{ fontSize:12, fontWeight:700 }}>{joined}/{maxP}</span>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Registered</span>
+                      <span style={{ fontSize:12, fontWeight:700 }}>{totalReg}</span>
+                    </div>
+                    {g.players && g.players.length > 0 && (
+                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>In Game</span>
+                        <span style={{ fontSize:12 }}>
+                          {g.players.map(p => {
+                            const name = players.find(pl => pl.player_id === p.player_id)?.username || `#${p.player_id}`;
+                            return <span key={p.player_id} style={{ marginRight:6 }}>{name}</span>;
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -925,7 +1009,7 @@ function GamePage({ gameId, player, api, onBack }) {
         <span className={`badge ${statusBadge(game.status)} ${game.status === "playing" ? "pulse" : ""}`}>
           {statusLabel(game.status)}
         </span>
-        {myTurn && !isWaiting && !isDone && <span className="badge badge-turn">YOUR TURN ▶</span>}
+        {myTurn && !isWaiting && !isDone && <span className="badge badge-turn" style={{display:"none"}}></span>}
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={() => setStats(true)}>Stats</button>
         </div>
@@ -933,6 +1017,29 @@ function GamePage({ gameId, player, api, onBack }) {
 
       <Alert type="error" msg={err} onClose={() => setErr("")} />
       {notice && <Alert type="success" msg={`Shot: ${notice}`} onClose={() => setNotice("")} />}
+
+      {/* Game info strip — always visible */}
+      <div className="card mb-16" style={{ padding: "10px 16px" }}>
+        <div style={{ display:"flex", gap:20, flexWrap:"wrap", alignItems:"center" }}>
+          <div>
+            <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Grid</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>{gridSize}×{gridSize}</div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Players</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>{(game.players||[]).length}/{game.max_players ?? "?"}</div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Active</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>{(game.players||[]).filter(p => !(p.is_defeated)).length}</div>
+          </div>
+          {!isWaiting && myTurn && !isDone && (
+            <div style={{ marginLeft:"auto" }}>
+              <span className="badge badge-turn pulse">YOUR TURN ▶</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Winner */}
       {isDone && (
@@ -954,13 +1061,75 @@ function GamePage({ gameId, player, api, onBack }) {
             onPlaced={() => { setPlaced(true); refresh(); }} />
         </div>
       )}
-      {isWaiting && placed && (
-        <div className="card mb-16 text-sm text-muted">
-          ✓ Ships placed! Waiting for all players to be ready… (auto-refreshing)
+
+      {/* Waiting lobby — always show while status is waiting_setup */}
+      {isWaiting && (
+        <div className="mb-16">
+          {/* Game info strip */}
+          <div className="card mb-12" style={{ padding: "10px 16px" }}>
+            <div style={{ display:"flex", gap:20, flexWrap:"wrap", alignItems:"center" }}>
+              <div>
+                <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Grid</div>
+                <div style={{ fontSize:14, fontWeight:700 }}>{gridSize}×{gridSize}</div>
+              </div>
+              <div>
+                <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Players</div>
+                <div style={{ fontSize:14, fontWeight:700 }}>{(game.players||[]).length}/{game.max_players ?? "?"}</div>
+              </div>
+              <div>
+                <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:2 }}>Slots Open</div>
+                <div style={{ fontSize:14, fontWeight:700 }}>{Math.max(0,(game.max_players||0)-(game.players||[]).length)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Player roster */}
+          <div className="section-title">Players in this Game</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {(game.players || []).map(p => {
+              const isMe       = p.player_id === player.player_id;
+              const name       = playerNames[String(p.player_id)] || `#${p.player_id}`;
+              const hasPlaced  = p.has_placed_ships ?? false;
+              return (
+                <div key={p.player_id} className="surface" style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div className="avatar" style={{ width:28, height:28, fontSize:11, flexShrink:0 }}>
+                    {initials(name)}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div className="text-xs fw-bold">{name}{isMe ? " (you)" : ""}</div>
+                    <div className="text-xs text-muted">{hasPlaced ? "✓ Ships placed" : "⏳ Placing ships…"}</div>
+                  </div>
+                  {hasPlaced
+                    ? <span className="badge badge-win">READY</span>
+                    : <span className="badge badge-open">WAITING</span>}
+                </div>
+              );
+            })}
+            {/* Empty slots */}
+            {Array.from({ length: Math.max(0,(game.max_players||0)-(game.players||[]).length) }).map((_,i) => (
+              <div key={`empty-${i}`} className="surface" style={{ display:"flex", alignItems:"center", gap:10, opacity:0.45 }}>
+                <div style={{ width:28, height:28, borderRadius:"50%", background:"var(--cell-border)", flexShrink:0 }} />
+                <div className="text-xs text-muted">Waiting for player…</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Waiting message after I've placed */}
+          {placed && meInGame && (() => {
+            const notReady = (game.players||[]).filter(p => !(p.has_placed_ships ?? false));
+            const waitingFor = notReady.filter(p => p.player_id !== player.player_id);
+            return waitingFor.length > 0 ? (
+              <div className="alert alert-success mt-8" style={{ marginBottom:0 }}>
+                ✓ Ships placed! Waiting for {waitingFor.length} opponent{waitingFor.length > 1 ? "s" : ""} to place ships…
+              </div>
+            ) : null;
+          })()}
+
+          {/* Observer note */}
+          {!meInGame && (
+            <div className="text-sm text-muted mt-8">You are observing this game.</div>
+          )}
         </div>
-      )}
-      {isWaiting && !meInGame && (
-        <div className="card mb-16 text-sm text-muted">You are observing this game.</div>
       )}
 
       {/* Playing */}
@@ -969,7 +1138,7 @@ function GamePage({ gameId, player, api, onBack }) {
           {/* My board */}
           <div className="board-panel">
             <div className="section-title">Your Board</div>
-            <div className="card" style={{ overflowX: "auto" }}>
+            <div className="card">
               <div className="legend mb-8">
                 <div className="legend-item"><div className="legend-dot" style={{ background: "#1D9E75" }}></div>Your ship</div>
                 <div className="legend-item"><div className="legend-dot" style={{ background: "#D85A30" }}></div>Hit</div>
@@ -996,7 +1165,7 @@ function GamePage({ gameId, player, api, onBack }) {
                 </button>
               ))}
             </div>
-            <div className="card" style={{ overflowX: "auto" }}>
+            <div className="card">
               {targetId ? (
                 <>
                   <div className="text-xs text-muted mb-8">
@@ -1109,6 +1278,25 @@ function App() {
   const [server, setServer]       = useLocalStorage("bs_server", window.location.origin);
   const [myGameIds, setMyGames]   = useLocalStorage("bs_games", []);
   const [tab, setTab]             = useState("lobby");
+  const [theme, setTheme]         = useLocalStorage("bs_theme", "auto"); // "auto" | "light" | "dark"
+
+  // Apply theme to <html> element
+  React.useEffect(() => {
+    const html = document.documentElement;
+    if (theme === "light")  html.setAttribute("data-theme", "light");
+    else if (theme === "dark") html.setAttribute("data-theme", "dark");
+    else html.removeAttribute("data-theme"); // OS default
+  }, [theme]);
+
+  // Detect current effective theme for button icon
+  const isDark = theme === "dark" ||
+    (theme === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  const cycleTheme = () => {
+    setTheme(t => t === "auto" ? "light" : t === "light" ? "dark" : "auto");
+  };
+  const themeIcon  = theme === "auto" ? "◑" : theme === "light" ? "☀" : "☾";
+  const themeTitle = theme === "auto" ? "Auto (OS)" : theme === "light" ? "Light" : "Dark";
 
   const api = React.useMemo(() => makeApi(server), [server]);
 
@@ -1144,6 +1332,14 @@ function App() {
           </button>
         ))}
         <div className="nav-spacer" />
+        <button
+          className="btn btn-sm"
+          onClick={cycleTheme}
+          title={`Theme: ${themeTitle} — click to cycle`}
+          style={{ fontSize: 14, padding: "4px 8px" }}
+        >
+          {themeIcon}
+        </button>
         <div className="user-chip">
           <div className="avatar">{initials(player.username)}</div>
           <span>{player.username}</span>
