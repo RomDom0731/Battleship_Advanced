@@ -705,6 +705,7 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
                 <div key={g.game_id} className="card game-row">
                   <div className="game-info">
                     <div className="game-title">Game #{g.game_id}</div>
+                    <div className="game-meta">{g.grid_size ? `${g.grid_size}×${g.grid_size}` : ""}{g.player_count !== undefined ? ` · ${g.player_count} player${g.player_count !== 1 ? "s" : ""}` : ""}</div>
                   </div>
                   <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
                   {inGame && <span className="badge badge-joined">JOINED</span>}
