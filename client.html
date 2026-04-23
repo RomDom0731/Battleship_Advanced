@@ -7,26 +7,69 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 <style>
+  :root {
+    --bg:         #f4f3ef;
+    --fg:         #1a1a1a;
+    --fg-muted:   #666;
+    --fg-faint:   #aaa;
+    --card-bg:    #ffffff;
+    --card-border:#e0ddd6;
+    --surface-bg: #eeece7;
+    --input-bg:   #f5f4f0;
+    --input-border:#ddd;
+    --nav-bg:     #ffffff;
+    --nav-border: #ddd;
+    --tab-bg:     #f0ede8;
+    --tab-active: #ffffff;
+    --tab-active-fg: #1a1a1a;
+    --divider:    #eee;
+    --stat-bg:    #eeece7;
+    --stat-fg:    #1a1a1a;
+    --stat-label: #555;
+    --btn-border: #ccc;
+    --btn-hover:  rgba(0,0,0,0.05);
+    --cell-empty: #eeece7;
+    --cell-border:#ddd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:         #1a1a18;
+      --fg:         #e8e6e0;
+      --fg-muted:   #999;
+      --fg-faint:   #666;
+      --card-bg:    #252522;
+      --card-border:#3a3a36;
+      --surface-bg: #2e2e2a;
+      --input-bg:   #2e2e2a;
+      --input-border:#4a4a44;
+      --nav-bg:     #252522;
+      --nav-border: #3a3a36;
+      --tab-bg:     #1e1e1c;
+      --tab-active: #333330;
+      --tab-active-fg: #e8e6e0;
+      --divider:    #333330;
+      --stat-bg:    #2e2e2a;
+      --stat-fg:    #e8e6e0;
+      --stat-label: #999;
+      --btn-border: #4a4a44;
+      --btn-hover:  rgba(255,255,255,0.07);
+      --cell-empty: #2a2a27;
+      --cell-border:#3a3a36;
+    }
+  }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Space Mono', 'Courier New', monospace;
-    background: #f4f3ef;
-    color: #1a1a1a;
+    background: var(--bg);
+    color: var(--fg);
     min-height: 100vh;
-  }
-  @media (prefers-color-scheme: dark) {
-    body { background: #1a1a18; color: #e8e6e0; }
-    .card { background: #252522 !important; border-color: #3a3a36 !important; }
-    .surface { background: #2e2e2a !important; }
-    input, select { background: #2e2e2a !important; color: #e8e6e0 !important; border-color: #3a3a36 !important; }
-    .nav { background: #252522 !important; border-color: #3a3a36 !important; }
-    .muted { color: #888 !important; }
   }
 
   /* Nav */
   .nav {
-    background: #fff;
-    border-bottom: 0.5px solid #ddd;
+    background: var(--nav-bg);
+    border-bottom: 0.5px solid var(--nav-border);
     padding: 0 1.5rem;
     display: flex;
     align-items: center;
@@ -41,7 +84,7 @@
   .logo { font-size: 14px; font-weight: 700; letter-spacing: 0.14em; display: flex; align-items: center; gap: 8px; }
   .logo-icon { font-size: 18px; }
   .nav-spacer { flex: 1; }
-  .user-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #666; }
+  .user-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-muted); }
   .avatar {
     width: 30px; height: 30px; border-radius: 50%;
     background: #1D9E75; color: #fff;
@@ -52,18 +95,18 @@
   /* Buttons */
   .btn {
     background: transparent;
-    border: 0.5px solid #ccc;
+    border: 0.5px solid var(--btn-border);
     border-radius: 8px;
     padding: 6px 14px;
     font-size: 12px;
     cursor: pointer;
     font-family: inherit;
     letter-spacing: 0.05em;
-    color: inherit;
+    color: var(--fg);
     transition: background 0.12s, opacity 0.12s;
     white-space: nowrap;
   }
-  .btn:hover { background: rgba(0,0,0,0.05); }
+  .btn:hover { background: var(--btn-hover); }
   .btn:active { transform: scale(0.97); }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-primary { background: #1D9E75; color: #fff; border: none; }
@@ -71,24 +114,24 @@
   .btn-danger { background: #D85A30; color: #fff; border: none; }
   .btn-sm { padding: 4px 10px; font-size: 11px; }
   .btn-tab { border-radius: 6px; }
-  .btn-tab.active { background: #f0ede8; border-color: #bbb; font-weight: 700; }
+  .btn-tab.active { background: var(--tab-active); border-color: var(--btn-border); font-weight: 700; }
 
   /* Cards */
   .card {
-    background: #fff;
-    border: 0.5px solid #e0ddd6;
+    background: var(--card-bg);
+    border: 0.5px solid var(--card-border);
     border-radius: 12px;
     padding: 1rem 1.25rem;
   }
-  .surface { background: #eeece7; border-radius: 8px; padding: 12px 16px; }
+  .surface { background: var(--surface-bg); border-radius: 8px; padding: 12px 16px; }
 
   /* Form */
   .field { margin-bottom: 14px; }
-  .field label { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 5px; }
+  .field label { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-muted); margin-bottom: 5px; }
   input[type=text], input[type=number], select {
-    width: 100%; background: #f5f4f0; border: 0.5px solid #ddd;
+    width: 100%; background: var(--input-bg); border: 0.5px solid var(--input-border);
     border-radius: 8px; padding: 8px 12px; font-size: 13px;
-    font-family: inherit; color: inherit; outline: none;
+    font-family: inherit; color: var(--fg); outline: none;
   }
   input[type=text]:focus, input[type=number]:focus { border-color: #1D9E75; }
   input[type=range] { width: 100%; accent-color: #1D9E75; }
@@ -106,45 +149,60 @@
   .badge-hit    { background: #fcebeb; color: #a32d2d; }
   .badge-miss   { background: #e6f1fb; color: #185fa5; }
   .badge-win    { background: #e1f5ee; color: #0f6e56; }
+  @media (prefers-color-scheme: dark) {
+    .badge-open   { background: #0d3326; color: #5dcaa5; }
+    .badge-live   { background: #1a2e0d; color: #8dc850; }
+    .badge-done   { background: #3a1508; color: #e8845c; }
+    .badge-turn   { background: #3a2205; color: #e8a840; }
+    .badge-joined { background: #0d2240; color: #5b9ee8; }
+    .badge-hit    { background: #3a0d0d; color: #e87070; }
+    .badge-miss   { background: #0d2240; color: #5b9ee8; }
+    .badge-win    { background: #0d3326; color: #5dcaa5; }
+  }
 
   /* Alerts */
   .alert { border-radius: 8px; padding: 8px 12px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
   .alert-error   { background: #fcebeb; border: 0.5px solid #f09595; color: #791f1f; }
   .alert-success { background: #e1f5ee; border: 0.5px solid #5dcaa5; color: #085041; }
+  @media (prefers-color-scheme: dark) {
+    .alert-error   { background: #3a1515; border-color: #8b3535; color: #f09595; }
+    .alert-success { background: #0d2e22; border-color: #2a7a5a; color: #5dcaa5; }
+  }
   .close-btn { background: none; border: none; cursor: pointer; color: inherit; font-size: 18px; line-height: 1; flex-shrink: 0; }
 
   /* Section title */
-  .section-title { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #888; font-weight: 700; margin-bottom: 10px; }
+  .section-title { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-muted); font-weight: 700; margin-bottom: 10px; }
 
   /* Grid */
-  .grid-wrap { overflow-x: auto; display: inline-block; }
+  .grid-wrap { overflow-x: auto; display: block; max-width: 100%; }
   .grid-row { display: flex; }
   .cell {
     display: flex; align-items: center; justify-content: center;
-    border: 0.5px solid #ddd; border-radius: 3px;
+    border: 0.5px solid var(--cell-border); border-radius: 3px;
     font-size: 13px; line-height: 1; flex-shrink: 0;
     transition: background 0.1s, transform 0.08s;
     user-select: none;
   }
-  .cell-empty  { background: #eeece7; }
-  .cell-ship   { background: #1D9E75; color: #fff; }
-  .cell-hit    { background: #D85A30; color: #fff; transform: scale(1.06); }
-  .cell-miss   { background: #378ADD; color: #fff; }
-  .cell-select { background: #5DCAA5; color: #fff; }
+  .cell-empty     { background: var(--cell-empty); }
+  .cell-ship      { background: #1D9E75; color: #fff; }
+  .cell-ship-hit  { background: #D85A30; color: #fff; }
+  .cell-hit       { background: #D85A30; color: #fff; transform: scale(1.06); }
+  .cell-miss      { background: #378ADD; color: #fff; }
+  .cell-select    { background: #5DCAA5; color: #fff; }
   .cell-clickable { cursor: crosshair; }
   .cell-clickable:hover { filter: brightness(0.88); }
 
   /* Stat cards */
   .stat-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-  .stat-card { background: #eeece7; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 70px; }
-  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 4px; }
-  .stat-value { font-size: 22px; font-weight: 700; color: #1a1a1a; }
+  .stat-card { background: var(--stat-bg); border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 70px; }
+  .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--stat-label); margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--stat-fg); }
 
   /* Move log */
   .move-log { max-height: 200px; overflow-y: auto; }
-  .move-row { display: flex; gap: 12px; align-items: center; padding: 5px 0; border-bottom: 0.5px solid #eee; font-size: 12px; }
+  .move-row { display: flex; gap: 12px; align-items: center; padding: 5px 0; border-bottom: 0.5px solid var(--divider); font-size: 12px; }
   .move-row:last-child { border-bottom: none; }
-  .move-time { color: #aaa; min-width: 72px; font-variant-numeric: tabular-nums; }
+  .move-time { color: var(--fg-faint); min-width: 72px; font-variant-numeric: tabular-nums; }
 
   /* Layout helpers */
   .flex { display: flex; }
@@ -158,7 +216,7 @@
   .mb-16 { margin-bottom: 16px; }
   .mt-8 { margin-top: 8px; }
   .mt-12 { margin-top: 12px; }
-  .text-muted { color: #888; }
+  .text-muted { color: var(--fg-muted); }
   .text-sm { font-size: 12px; }
   .text-xs { font-size: 11px; }
   .fw-bold { font-weight: 700; }
@@ -167,11 +225,11 @@
   .text-center { text-align: center; }
 
   /* Page container */
-  .page { max-width: 860px; margin: 0 auto; padding: 1.5rem 1rem; }
+  .page { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem; }
 
   /* Modal overlay */
   .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
     display: flex; align-items: center; justify-content: center; z-index: 200;
   }
   .modal { max-width: 400px; width: 90%; margin: 16px; }
@@ -180,19 +238,22 @@
   .game-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .game-info { flex: 1; min-width: 140px; }
   .game-title { font-weight: 700; font-size: 14px; }
-  .game-meta  { font-size: 11px; color: #888; margin-top: 2px; }
+  .game-meta  { font-size: 11px; color: var(--fg-muted); margin-top: 2px; }
 
   /* Winner banner */
   .winner-banner { border: 2px solid #1D9E75; border-radius: 12px; padding: 1rem; text-align: center; margin-bottom: 16px; }
-  .winner-text { font-size: 22px; font-weight: 700; color: #0f6e56; }
+  .winner-text { font-size: 22px; font-weight: 700; color: #1D9E75; }
 
-  /* Boards layout */
-  .boards { display: flex; gap: 16px; flex-wrap: wrap; }
-  .board-panel { flex: 1; min-width: 220px; }
+  /* Boards layout — column on smaller screens, row on large */
+  .boards { display: flex; gap: 16px; flex-direction: column; }
+  @media (min-width: 700px) {
+    .boards { flex-direction: row; align-items: flex-start; }
+  }
+  .board-panel { min-width: 0; }
 
   /* Placement legend */
   .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #888; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--fg-muted); }
   .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
 
   /* Pulse animation for live badge */
@@ -269,9 +330,14 @@ function Alert({ type = "error", msg, onClose }) {
 }
 
 function Cell({ state, size, onClick }) {
-  const sz = Math.max(20, Math.min(40, Math.floor(340 / size)));
+  // Scale cell size down for larger grids so they fit without overlapping
+  const sz = Math.max(18, Math.min(38, Math.floor(420 / size)));
   const cls = ["cell", `cell-${state || "empty"}`, onClick ? "cell-clickable" : ""].join(" ");
-  const icon = state === "hit" ? "✕" : state === "miss" ? "·" : state === "ship" || state === "select" ? "▪" : "";
+  const icon = state === "hit" ? "✕"
+             : state === "miss" ? "·"
+             : state === "ship" || state === "select" ? "▪"
+             : state === "ship-hit" ? "✕"
+             : "";
   return (
     <div className={cls} style={{ width: sz, height: sz, fontSize: sz * 0.42 }} onClick={onClick}>
       {icon}
@@ -361,7 +427,7 @@ function RegisterPage({ onRegister }) {
         </div>
 
         {/* Tab switcher */}
-        <div style={{ display: "flex", background: "#f0ede8", borderRadius: 10, padding: 3, marginBottom: 20, gap: 3 }}>
+        <div style={{ display: "flex", background: "var(--tab-bg)", borderRadius: 10, padding: 3, marginBottom: 20, gap: 3 }}>
           {["login", "register"].map(m => (
             <button
               key={m}
@@ -370,9 +436,9 @@ function RegisterPage({ onRegister }) {
                 flex: 1, border: "none", borderRadius: 8, padding: "7px 0",
                 fontSize: 12, fontFamily: "inherit", fontWeight: 700,
                 letterSpacing: "0.06em", cursor: "pointer",
-                background: mode === m ? "#fff" : "transparent",
-                color: mode === m ? "#1a1a1a" : "#888",
-                boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                background: mode === m ? "var(--tab-active)" : "transparent",
+                color: mode === m ? "var(--tab-active-fg)" : "var(--fg-muted)",
+                boxShadow: mode === m ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
                 transition: "all .15s",
               }}
             >
@@ -450,7 +516,7 @@ function PlayerStatsRow({ p, api, isMe }) {
   };
 
   return (
-    <div style={{ borderBottom: "0.5px solid var(--color-border-tertiary, #eee)" }}>
+    <div style={{ borderBottom: "0.5px solid var(--divider)" }}>
       <div
         onClick={toggle}
         style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", cursor:"pointer" }}
@@ -486,9 +552,9 @@ function PlayerStatsRow({ p, api, isMe }) {
                 ["Hits",     stats.total_hits],
                 ["Accuracy", fmtAcc(stats.accuracy)],
               ].map(([label, val]) => (
-                <div key={label} style={{ background:"var(--color-background-secondary,#f0ede8)", borderRadius:6, padding:"6px 10px", minWidth:60 }}>
-                  <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.07em", color:"#555", marginBottom:2 }}>{label}</div>
-                  <div style={{ fontSize:16, fontWeight:700, color:"#1a1a1a" }}>{val}</div>
+                <div style={{ background:"var(--stat-bg)", borderRadius:6, padding:"6px 10px", minWidth:60 }}>
+                  <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.07em", color:"var(--stat-label)", marginBottom:2 }}>{label}</div>
+                  <div style={{ fontSize:16, fontWeight:700, color:"var(--stat-fg)" }}>{val}</div>
                 </div>
               ))}
             </div>
@@ -592,15 +658,15 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
       )}
 
       {/* Tab switcher */}
-      <div style={{ display:"flex", background:"#f0ede8", borderRadius:10, padding:3, marginBottom:16, gap:3 }}>
+      <div style={{ display:"flex", background:"var(--tab-bg)", borderRadius:10, padding:3, marginBottom:16, gap:3 }}>
         {[["games","Games"], ["players","Players"]].map(([key, label]) => (
           <button key={key} onClick={() => setLobbyTab(key)} style={{
             flex:1, border:"none", borderRadius:8, padding:"6px 0",
             fontSize:12, fontFamily:"inherit", fontWeight:700,
             letterSpacing:"0.06em", cursor:"pointer",
-            background: lobbyTab === key ? "#fff" : "transparent",
-            color: lobbyTab === key ? "#1a1a1a" : "#888",
-            boxShadow: lobbyTab === key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            background: lobbyTab === key ? "var(--tab-active)" : "transparent",
+            color: lobbyTab === key ? "var(--tab-active-fg)" : "var(--fg-muted)",
+            boxShadow: lobbyTab === key ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
             transition:"all .15s",
           }}>{label} {key === "games" ? `(${games.length})` : `(${players.length})`}</button>
         ))}
@@ -818,9 +884,7 @@ function GamePage({ gameId, player, api, onBack }) {
   const opponents = (game.players || []).filter(p => p.player_id !== player.player_id);
   const meInGame  = (game.players || []).find(p => p.player_id === player.player_id);
 
-  // My shots = moves I fired. Show on the attack grid.
-  // Each player fires independently so we only show MY shots on the attack grid —
-  // another player firing at the same coordinate doesn't count as "already shot there" for me.
+  // My shots on the attack grid (what I fired at opponents)
   const myShots = {};
   for (const m of moves) {
     if (m.player_id === player.player_id) {
@@ -828,20 +892,27 @@ function GamePage({ gameId, player, api, onBack }) {
     }
   }
 
-  // Incoming shots = moves fired by any other player. Show on my own board.
-  const incomingShots = {};
-  for (const m of moves) {
-    if (m.player_id !== player.player_id) {
-      // Each opponent fires independently — use their player_id to namespace
-      // so two opponents firing at the same cell both show up
-      incomingShots[`${m.player_id}:${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
-    }
+  // Build my own board: show my ship positions, then overlay incoming shots
+  // meInGame.ships contains ship positions if the server returns them,
+  // otherwise fall back to empty (ships only visible after placed)
+  const myBoardGrid = {};
+  // Overlay ships from meInGame.ships (array of {row,col} or {row,col,is_hit})
+  for (const s of (meInGame?.ships || [])) {
+    const key = `${s.row},${s.col}`;
+    myBoardGrid[key] = s.is_hit ? "ship-hit" : "ship";
   }
-  // Re-key incoming shots without player prefix for the grid (last writer wins per cell is fine for display)
-  const incomingShotsGrid = {};
+  // Overlay incoming shots on top (hit/miss take priority to show damage)
   for (const m of moves) {
     if (m.player_id !== player.player_id) {
-      incomingShotsGrid[`${m.row},${m.col}`] = m.result === "hit" ? "hit" : "miss";
+      const key = `${m.row},${m.col}`;
+      if (m.result === "hit") {
+        myBoardGrid[key] = "ship-hit"; // ship was hit here
+      } else {
+        // Only show miss if there's no ship at this cell (shouldn't happen but safety)
+        if (!myBoardGrid[key] || myBoardGrid[key] === "empty") {
+          myBoardGrid[key] = "miss";
+        }
+      }
     }
   }
 
@@ -898,8 +969,13 @@ function GamePage({ gameId, player, api, onBack }) {
           {/* My board */}
           <div className="board-panel">
             <div className="section-title">Your Board</div>
-            <div className="card">
-              <Grid size={gridSize} states={incomingShotsGrid} />
+            <div className="card" style={{ overflowX: "auto" }}>
+              <div className="legend mb-8">
+                <div className="legend-item"><div className="legend-dot" style={{ background: "#1D9E75" }}></div>Your ship</div>
+                <div className="legend-item"><div className="legend-dot" style={{ background: "#D85A30" }}></div>Hit</div>
+                <div className="legend-item"><div className="legend-dot" style={{ background: "#378ADD" }}></div>Miss</div>
+              </div>
+              <Grid size={gridSize} states={myBoardGrid} />
               <div className="text-xs text-muted mt-8">
                 Ships remaining: {meInGame?.ships_remaining ?? "?"}
               </div>
@@ -907,7 +983,7 @@ function GamePage({ gameId, player, api, onBack }) {
           </div>
 
           {/* Targeting */}
-          <div className="board-panel" style={{ flex: 2 }}>
+          <div className="board-panel">
             <div className="flex gap-8 flex-wrap mb-8" style={{ alignItems: "center" }}>
               <div className="section-title" style={{ margin: 0 }}>Fire At:</div>
               {opponents.map(op => (
@@ -920,7 +996,7 @@ function GamePage({ gameId, player, api, onBack }) {
                 </button>
               ))}
             </div>
-            <div className="card">
+            <div className="card" style={{ overflowX: "auto" }}>
               {targetId ? (
                 <>
                   <div className="text-xs text-muted mb-8">
@@ -932,7 +1008,7 @@ function GamePage({ gameId, player, api, onBack }) {
                   <div className="legend mb-8">
                     <div className="legend-item"><div className="legend-dot" style={{ background: "#D85A30" }}></div>Hit</div>
                     <div className="legend-item"><div className="legend-dot" style={{ background: "#378ADD" }}></div>Miss</div>
-                    <div className="legend-item"><div className="legend-dot" style={{ background: "#eeece7", border: "0.5px solid #ccc" }}></div>Unknown</div>
+                    <div className="legend-item"><div className="legend-dot" style={{ background: "var(--cell-empty)", border: "0.5px solid var(--cell-border)" }}></div>Unknown</div>
                   </div>
                   <Grid
                     size={gridSize}
