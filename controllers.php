@@ -267,7 +267,6 @@ function getGame(int $game_id): void {
             : null;
 
         $winnerId = $game['winner_id'] !== null ? (int)$game['winner_id'] : null;
-        $rematchProposedBy = $game['rematch_proposed_by'] !== null ? (int)$game['rematch_proposed_by'] : null;
 
         http_response_code(200);
         echo json_encode([
@@ -278,7 +277,6 @@ function getGame(int $game_id): void {
             'current_turn_player_id' => $turnId,
             'winner_id'              => $winnerId,
             'total_moves'            => $totalMoves,
-            'rematch_proposed_by'    => $rematchProposedBy,
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -817,158 +815,6 @@ function resetSystem(): void {
     } catch (PDOException $e) {
         http_response_code(500);
         echo json_encode(['error' => 'server_error', 'message' => $e->getMessage()]);
-    }
-}
-
-// POST /api/games/{id}/leave
-function leaveGame(int $game_id): void {
-    $body      = json_decode(file_get_contents('php://input'), true) ?? [];
-    $player_id = $body['player_id'] ?? null;
-
-    if (!$player_id) {
-        http_response_code(400);
-        echo json_encode(['error' => 'bad_request', 'message' => 'player_id is required']);
-        return;
-    }
-
-    try {
-        $db = getDB();
-        $db->beginTransaction();
-
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gid FOR UPDATE');
-        $stmt->execute([':gid' => $game_id]);
-        $game = $stmt->fetch();
-
-        if (!$game) {
-            $db->rollBack();
-            http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
-            return;
-        }
-
-        if ($game['status'] === 'finished') {
-            $db->rollBack();
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'Game is already finished']);
-            return;
-        }
-
-        $stmt = $db->prepare('SELECT * FROM game_players WHERE game_id = :gid AND player_id = :pid');
-        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
-        if (!$stmt->fetch()) {
-            $db->rollBack();
-            http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Player not in this game']);
-            return;
-        }
-
-        if ($game['status'] === 'waiting_setup') {
-            $db->prepare('DELETE FROM ships WHERE game_id = :gid AND player_id = :pid')
-               ->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
-            $db->prepare('DELETE FROM game_players WHERE game_id = :gid AND player_id = :pid')
-               ->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
-        } else {
-            $db->prepare('UPDATE game_players SET is_defeated = TRUE WHERE game_id = :gid AND player_id = :pid')
-               ->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
-            $db->prepare('UPDATE players SET total_games = total_games + 1, total_losses = total_losses + 1 WHERE player_id = :pid')
-               ->execute([':pid' => (int)$player_id]);
-
-            $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :gid AND is_defeated = FALSE');
-            $stmt->execute([':gid' => $game_id]);
-            $survivors = $stmt->fetchAll();
-
-            if (count($survivors) === 1) {
-                $winnerId = (int)$survivors[0]['player_id'];
-                $db->prepare("UPDATE games SET status = 'finished', winner_id = :wid, current_turn_player_id = NULL WHERE game_id = :gid")
-                   ->execute([':wid' => $winnerId, ':gid' => $game_id]);
-                $db->prepare('UPDATE players SET total_games = total_games + 1, total_wins = total_wins + 1 WHERE player_id = :pid')
-                   ->execute([':pid' => $winnerId]);
-            }
-        }
-
-        $db->commit();
-        http_response_code(200);
-        echo json_encode(['status' => 'left']);
-
-    } catch (PDOException $e) {
-        if (isset($db) && $db->inTransaction()) $db->rollBack();
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
-    }
-}
-
-// POST /api/games/{id}/rematch
-function rematchGame(int $game_id): void {
-    $body      = json_decode(file_get_contents('php://input'), true) ?? [];
-    $player_id = $body['player_id'] ?? null;
-    $action    = $body['action']    ?? 'propose';
-
-    if (!$player_id) {
-        http_response_code(400);
-        echo json_encode(['error' => 'bad_request', 'message' => 'player_id is required']);
-        return;
-    }
-
-    try {
-        $db = getDB();
-
-        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gid');
-        $stmt->execute([':gid' => $game_id]);
-        $game = $stmt->fetch();
-
-        if (!$game) {
-            http_response_code(404);
-            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
-            return;
-        }
-
-        if ($game['status'] !== 'finished') {
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'Can only rematch a finished game']);
-            return;
-        }
-
-        $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :gid ORDER BY turn_order ASC');
-        $stmt->execute([':gid' => $game_id]);
-        $players = $stmt->fetchAll();
-
-        if (empty($players)) {
-            http_response_code(400);
-            echo json_encode(['error' => 'bad_request', 'message' => 'No players found in original game']);
-            return;
-        }
-
-        // Create the rematch game immediately — no proposal tracking needed
-        $db->beginTransaction();
-
-        $stmt = $db->prepare(
-            "INSERT INTO games (grid_size, max_players, status)
-             VALUES (:gridSize, :maxPlayers, 'waiting_setup')
-             RETURNING game_id"
-        );
-        $stmt->execute([':gridSize' => $game['grid_size'], ':maxPlayers' => $game['max_players']]);
-        $newGameId = (int)$stmt->fetchColumn();
-
-        // Auto-join the player who clicked rematch
-        $stmt = $db->prepare('SELECT turn_order FROM game_players WHERE game_id = :gid AND player_id = :pid');
-        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
-        $originalOrder = $stmt->fetch();
-
-        $db->prepare('INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:gid, :pid, :order)')
-           ->execute([':gid' => $newGameId, ':pid' => (int)$player_id, ':order' => $originalOrder ? (int)$originalOrder['turn_order'] : 0]);
-
-        $db->commit();
-
-        http_response_code(201);
-        echo json_encode([
-            'game_id' => $newGameId,
-            'status'  => 'waiting_setup',
-        ]);
-
-    } catch (PDOException $e) {
-        if (isset($db) && $db->inTransaction()) $db->rollBack();
-        http_response_code(500);
-        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
     }
 }
 
