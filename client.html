@@ -848,8 +848,6 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
   const [leaving, setLeaving]         = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
   const [rematchError, setRematchError]     = useState("");
-  const [rematchProposed, setRematchProposed] = useState(false);
-  const [rematchReceived, setRematchReceived] = useState(false);
   const [playerNames, setNames]       = useState({});
   const firingRef                     = useRef(false);
 
@@ -863,9 +861,6 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
       setNames(names);
       const moveList = Array.isArray(m) ? m : (Array.isArray(m?.moves) ? m.moves : []);
       setMoves(moveList);
-      // Use the server as authoritative truth: if ships_remaining > 0 the player has
-      // already placed, and if the game has left waiting_setup everyone has placed.
-      // This means placed is restored correctly even after a remount or page refresh.
       const me = (g.players || []).find(p => p.player_id === player.player_id);
       if (g.status !== "waiting_setup" || (me && me.ships_remaining > 0)) {
         setPlaced(true);
@@ -884,26 +879,11 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
   const handleRematch = async () => {
     setRematchLoading(true); setRematchError("");
     try {
-      const res = await api.rematchGame(gameId, player.player_id, 'propose');
-      if (res.status === 'proposed') {
-        setRematchProposed(true);
-      } else {
-        onLeave(gameId);
-        onOpenGame(res.game_id);
-      }
-    } catch (e) {
-      setRematchError(e.message || "Could not propose rematch.");
-    } finally { setRematchLoading(false); }
-  };
-
-  const handleAcceptRematch = async () => {
-    setRematchLoading(true); setRematchError("");
-    try {
-      const res = await api.rematchGame(gameId, player.player_id, 'accept');
+      const res = await api.rematchGame(gameId, player.player_id);
       onLeave(gameId);
       onOpenGame(res.game_id);
     } catch (e) {
-      setRematchError(e.message || "Could not accept rematch.");
+      setRematchError(e.message || "Could not create rematch.");
     } finally { setRematchLoading(false); }
   };
 
@@ -1015,23 +995,9 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
           </div>
           <div className="text-xs text-muted mt-8 mb-12">Game finished — want to go again?</div>
           {rematchError && <div className="text-xs" style={{ color:"#D85A30", marginBottom:8 }}>{rematchError}</div>}
-          {rematchProposed ? (
-            <div className="alert alert-success" style={{ marginBottom:0 }}>
-              ✓ Rematch proposed — waiting for your opponent to accept…
-            </div>
-          ) : rematchReceived ? (
-            <div className="flex gap-8">
-              <div className="text-sm text-muted flex-1">Your opponent wants a rematch!</div>
-              <button className="btn btn-primary btn-sm" onClick={handleAcceptRematch} disabled={rematchLoading}>
-                {rematchLoading ? "Accepting…" : "Accept"}
-              </button>
-              <button className="btn btn-sm" onClick={() => setRematchReceived(false)}>Decline</button>
-            </div>
-          ) : (
-            <button className="btn btn-primary btn-sm" onClick={handleRematch} disabled={rematchLoading}>
-              {rematchLoading ? "Proposing…" : "🔄 Rematch"}
-            </button>
-          )}
+          <button className="btn btn-primary btn-sm" onClick={handleRematch} disabled={rematchLoading}>
+            {rematchLoading ? "Creating…" : "🔄 Rematch"}
+          </button>
         </div>
       )}
 

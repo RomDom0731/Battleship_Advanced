@@ -267,6 +267,7 @@ function getGame(int $game_id): void {
             : null;
 
         $winnerId = $game['winner_id'] !== null ? (int)$game['winner_id'] : null;
+        $rematchProposedBy = $game['rematch_proposed_by'] !== null ? (int)$game['rematch_proposed_by'] : null;
 
         http_response_code(200);
         echo json_encode([
@@ -277,6 +278,7 @@ function getGame(int $game_id): void {
             'current_turn_player_id' => $turnId,
             'winner_id'              => $winnerId,
             'total_moves'            => $totalMoves,
+            'rematch_proposed_by'    => $rematchProposedBy,
         ]);
     } catch (PDOException $e) {
         http_response_code(500);
@@ -936,17 +938,7 @@ function rematchGame(int $game_id): void {
             return;
         }
 
-        // If proposing, store the proposal in game metadata
-        if ($action === 'propose') {
-            $db->prepare("UPDATE games SET rematch_proposed_by = :pid WHERE game_id = :gid")
-               ->execute([':pid' => (int)$player_id, ':gid' => $game_id]);
-
-            http_response_code(200);
-            echo json_encode(['status' => 'proposed', 'message' => 'Rematch proposed, waiting for opponent']);
-            return;
-        }
-
-        // If accepting, create the new game
+        // Create the rematch game immediately — no proposal tracking needed
         $db->beginTransaction();
 
         $stmt = $db->prepare(
@@ -957,10 +949,13 @@ function rematchGame(int $game_id): void {
         $stmt->execute([':gridSize' => $game['grid_size'], ':maxPlayers' => $game['max_players']]);
         $newGameId = (int)$stmt->fetchColumn();
 
-        foreach ($players as $i => $p) {
-            $db->prepare('INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:gid, :pid, :order)')
-               ->execute([':gid' => $newGameId, ':pid' => $p['player_id'], ':order' => $i]);
-        }
+        // Auto-join the player who clicked rematch
+        $stmt = $db->prepare('SELECT turn_order FROM game_players WHERE game_id = :gid AND player_id = :pid');
+        $stmt->execute([':gid' => $game_id, ':pid' => (int)$player_id]);
+        $originalOrder = $stmt->fetch();
+
+        $db->prepare('INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:gid, :pid, :order)')
+           ->execute([':gid' => $newGameId, ':pid' => (int)$player_id, ':order' => $originalOrder ? (int)$originalOrder['turn_order'] : 0]);
 
         $db->commit();
 
