@@ -381,7 +381,12 @@ const KNOWN_SERVERS = [
   { label: "0x12 — Whitt & Stivers",              url: "https://final-project-m5u7.onrender.com" },
   { label: "Custom…",                              url: "__custom__" },
 ];
+// Always reset to our server on page load so graders and new visitors
+// start pointed at the right place regardless of any prior localStorage value.
 const DEFAULT_SERVER = "https://battleship-advanced.onrender.com";
+localStorage.setItem("bs_server", DEFAULT_SERVER);
+localStorage.setItem("bs_server", DEFAULT_SERVER);
+
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 function RegisterPage({ onRegister, loginError = "" }) {
