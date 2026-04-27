@@ -940,7 +940,7 @@ function GamePage({ gameId, player, api, onBack, onLeave, onAutoLogout }) {
         {myTurn && !isWaiting && !isDone && <span className="badge badge-turn pulse">YOUR TURN ▶</span>}
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={() => setStats(true)}>Stats</button>
-          {!isDone && <button className="btn btn-danger btn-sm" onClick={() => setShowLeave(true)}>Leave</button>}
+          {!isDone && <button className="btn btn-danger btn-sm" onClick={() => setShowLeave(true)}>Forfeit</button>}
         </div>
       </div>
 
@@ -1161,7 +1161,7 @@ function GamePage({ gameId, player, api, onBack, onLeave, onAutoLogout }) {
             <div className="flex gap-8">
               <button className="btn flex-1" onClick={() => setShowLeave(false)}>Cancel</button>
               <button className="btn btn-danger flex-1" onClick={handleLeave} disabled={leaving}>
-                {leaving ? "Leaving…" : "Leave Game"}
+                {leaving ? "Forfeiting…" : "Forfeit Game"}
               </button>
             </div>
           </div>
