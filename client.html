@@ -597,10 +597,14 @@ function Lobby({ player, api, myGameIds, onOpenGame, onAutoLogout }) {
       gameList = Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []);
     } else { setErr("Cannot reach server. Check your server URL."); }
     if (pRes.status === "fulfilled") {
-      const playerList = Array.isArray(pRes.value) ? pRes.value : [];
+      const raw = pRes.value;
+      // Handle both array response and wrapped { players: [...] } format
+      const playerList = Array.isArray(raw) ? raw : (Array.isArray(raw?.players) ? raw.players : []);
       setPlayers(playerList);
+      // Only auto-logout if we got a non-empty valid list and the player isn't in it.
+      // If the list is empty it likely means a parse/format mismatch, not a real wipe.
       const stillExists = playerList.some(p => p.player_id === player.player_id);
-      if (!stillExists) { onAutoLogout?.("Your account no longer exists on this server — the database may have been reset. Please sign in again."); return; }
+      if (playerList.length > 0 && !stillExists) { onAutoLogout?.("Your account no longer exists on this server — the database may have been reset. Please sign in again."); return; }
     }
     setGames(gameList);
 
@@ -881,8 +885,9 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
       if (others.length > 0) setTarget(t => t ?? others[0].player_id);
 
       // Auto-logout if this player no longer exists (e.g. DB was wiped)
-      const stillExists = (Array.isArray(allPlayers) ? allPlayers : []).some(p => p.player_id === player.player_id);
-      if (!stillExists) { onAutoLogout?.("Your account no longer exists on this server — the database may have been reset. Please sign in again."); return; }
+      const allPlayerList = Array.isArray(allPlayers) ? allPlayers : (Array.isArray(allPlayers?.players) ? allPlayers.players : []);
+      const stillExists = allPlayerList.some(p => p.player_id === player.player_id);
+      if (allPlayerList.length > 0 && !stillExists) { onAutoLogout?.("Your account no longer exists on this server — the database may have been reset. Please sign in again."); return; }
     } catch { setErr("Server unreachable."); }
   }, [api, gameId, player.player_id, player.username, onAutoLogout]);
 
