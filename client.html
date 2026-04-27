@@ -830,7 +830,7 @@ function StatsModal({ player, api, onClose }) {
 }
 
 // ── Game Page ─────────────────────────────────────────────────────────────────
-function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
+function GamePage({ gameId, player, api, onBack, onLeave, onAutoLogout }) {
   const [game, setGame]               = useState(null);
   const [moves, setMoves]             = useState([]);
   // max_players is not returned by getGame — read from localStorage where Lobby stored it
@@ -1349,7 +1349,7 @@ function App() {
       )}
 
       {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} onAutoLogout={(msg) => logout(msg)} />}
-      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onAutoLogout={(msg) => logout(msg)} />}
+      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onLeave={(id) => { setMyGames(prev => prev.filter(g => g !== id)); setTab("lobby"); }} onAutoLogout={(msg) => logout(msg)} />}
     </div>
   );
 }
