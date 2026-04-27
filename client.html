@@ -1343,7 +1343,7 @@ function App() {
         <div className="user-chip">
           <div className="avatar">{initials(player.username)}</div>
           <span>{player.username}</span>
-          <button className="btn btn-sm" onClick={logout}>Logout</button>
+          <button className="btn btn-sm" onClick={() => logout()}>Logout</button>
         </div>
       </nav>
 
