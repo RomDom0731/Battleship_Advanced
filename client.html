@@ -277,6 +277,7 @@ function makeApi(base) {
     fireShot:     (id, pid, row, col) => call("POST", `/games/${id}/fire`, { player_id: pid, row, col }),
     getMoves:     (id)                => call("GET",  `/games/${id}/moves`),
     leaveGame:    (id, pid)           => call("POST", `/games/${id}/leave`, { player_id: pid }),
+    rematchGame:  (id, pid)           => call("POST", `/games/${id}/rematch`, { player_id: pid }),
   };
 }
 
@@ -845,6 +846,8 @@ function GamePage({ gameId, player, api, onBack, onLeave, onAutoLogout }) {
   const [showStats, setStats]         = useState(false);
   const [showLeave, setShowLeave]     = useState(false);
   const [leaving, setLeaving]         = useState(false);
+  const [rematchLoading, setRematchLoading] = useState(false);
+  const [rematchError, setRematchError]     = useState("");
   const [playerNames, setNames]       = useState({});
   const firingRef                     = useRef(false);
 
@@ -875,6 +878,17 @@ function GamePage({ gameId, player, api, onBack, onLeave, onAutoLogout }) {
   }, [api, gameId, player.player_id, player.username, onAutoLogout]);
 
   useEffect(() => { refresh(); const t = setInterval(refresh, 3000); return () => clearInterval(t); }, [refresh]);
+
+  const handleRematch = async () => {
+    setRematchLoading(true); setRematchError("");
+    try {
+      const res = await api.rematchGame(gameId, player.player_id);
+      onLeave(gameId);
+      onOpenGame(res.game_id);
+    } catch (e) {
+      setRematchError(e.message || "Could not start rematch.");
+    } finally { setRematchLoading(false); }
+  };
 
   const handleLeave = async () => {
     setLeaving(true);
