@@ -359,24 +359,58 @@ function Grid({ size, states = {}, onCell, clickable }) {
   );
 }
 
+// ── Server list (all Phase 1 teams) ──────────────────────────────────────────
+const KNOWN_SERVERS = [
+  { label: "0x0C — Pasqualone & Kapoor (ours)",   url: "https://battleship-advanced.onrender.com" },
+  { label: "0x08 — Zapata & Kitchens",             url: "https://battleship-backend-zm8jxh5c8bph.code.run" },
+  { label: "0x10 — Stamper & Hooker",              url: "https://projectwarship.netlify.app" },
+  { label: "0x07 — Johnson & Schuyler",            url: "https://persistent-waters.onrender.com" },
+  { label: "0x0A — Borjas & Thompson",             url: "https://battleship-1-qpm6.onrender.com" },
+  { label: "0x01 — Koon & Estes",                  url: "https://battleship.koon.us" },
+  { label: "0x06 — Slade & Lake",                  url: "https://three750final-1.onrender.com" },
+  { label: "0x11 — Ashley & Sabol",                url: "https://battleship-cpsc3750.onrender.com" },
+  { label: "0x04 — Racz & Le",                     url: "https://webdevgroupproj.onrender.com" },
+  { label: "0x0E — Huber & Hwang",                 url: "https://cpsc3750-battleshipproject.onrender.com" },
+  { label: "0x0B — Dickson & Kluttz",              url: "https://cpsc.loosesocket.com" },
+  { label: "0x09 — Carter & Murphy",               url: "https://lightslategray-dogfish-869967.hostingersite.com" },
+  { label: "0x05 — Price & Abdelharim",            url: "https://cpsc3750phase2.onrender.com" },
+  { label: "0x0D — Sebastian & Xue",               url: "https://vibe-hunter.com/battleship" },
+  { label: "0x02 — Patel & Davis",                 url: "https://battlefieldgame.netlify.app" },
+  { label: "0x03 — Martino & Sincoff",             url: "https://finalproject3750.onrender.com" },
+  { label: "0x0F — Johnston & Frialde",            url: "https://cpsc-3750-battleship-final-project-phase2-3zol.onrender.com" },
+  { label: "0x12 — Whitt & Stivers",              url: "https://final-project-m5u7.onrender.com" },
+  { label: "Custom…",                              url: "__custom__" },
+];
+const DEFAULT_SERVER = "https://battleship-advanced.onrender.com";
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 function RegisterPage({ onRegister }) {
-  const [server, setServer]     = useLocalStorage("bs_server", window.location.origin);
-  const [username, setUsername] = useState("");
-  const [busy, setBusy]         = useState(false);
-  const [err, setErr]           = useState("");
-  const [mode, setMode]         = useState("login");
+  const [server, setServer]       = useLocalStorage("bs_server", DEFAULT_SERVER);
+  const [customUrl, setCustomUrl] = useState("");
+  const [username, setUsername]   = useState("");
+  const [busy, setBusy]           = useState(false);
+  const [err, setErr]             = useState("");
+  const [mode, setMode]           = useState("login");
+  const [showGuide, setShowGuide] = useState(false);
+
+  // Derive effective server URL
+  const effectiveServer = server === "__custom__" ? customUrl.trim() : server;
+
+  const handleServerChange = (val) => {
+    setServer(val);
+    setErr("");
+  };
 
   const submit = async () => {
     if (!username.trim()) { setErr("Username is required."); return; }
-    if (!server.trim())   { setErr("Server URL is required."); return; }
+    if (!effectiveServer) { setErr("Server URL is required."); return; }
     setBusy(true); setErr("");
-    const api = makeApi(server.trim());
+    const api = makeApi(effectiveServer);
     const uname = username.trim();
     if (mode === "register") {
       try {
         const res = await api.createPlayer(uname);
-        onRegister({ player_id: res.player_id, username: uname }, server.trim());
+        onRegister({ player_id: res.player_id, username: uname }, effectiveServer);
       } catch (e) {
         const msg = (e.message || e.error_message || e.error || "").toLowerCase();
         if (msg.includes("taken") || msg.includes("conflict") || e.status === 409)
@@ -390,14 +424,39 @@ function RegisterPage({ onRegister }) {
         const arr = Array.isArray(list) ? list : [];
         const found = arr.find(p => p.username.toLowerCase() === uname.toLowerCase());
         if (!found) setErr("No account found with that username.");
-        else onRegister({ player_id: found.player_id, username: found.username }, server.trim());
+        else onRegister({ player_id: found.player_id, username: found.username }, effectiveServer);
       } catch { setErr("Cannot reach server. Check the URL."); }
     }
     setBusy(false);
   };
 
   return (
-    <div style={{ maxWidth: 420, margin: "3rem auto", padding: "0 1rem" }}>
+    <div style={{ maxWidth: 460, margin: "2rem auto", padding: "0 1rem" }}>
+
+      {/* ── How to Get Started ── */}
+      <div className="card mb-16" style={{ borderLeft: "3px solid #1D9E75" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: showGuide ? 12 : 0, cursor:"pointer" }}
+             onClick={() => setShowGuide(v => !v)}>
+          <div style={{ fontWeight:700, fontSize:13 }}>📖 How to Get Started</div>
+          <span style={{ fontSize:11, color:"var(--fg-muted)" }}>{showGuide ? "▲ hide" : "▼ show"}</span>
+        </div>
+        {showGuide && (
+          <div className="text-sm" style={{ lineHeight:1.7 }}>
+            <div className="mb-8"><strong>1. Choose a server</strong> — The default is our server (0x0C). Use the dropdown below to switch to any team's server for cross-server play.</div>
+            <div className="mb-8"><strong>2. Register an account</strong> — Pick the <em>Register</em> tab and enter a username. Usernames are letters, numbers, and underscores only.</div>
+            <div className="mb-8"><strong>3. Create or join a game</strong> — In the Lobby, hit <em>+ New Game</em> to create one (pick grid size &amp; player cap), or click <em>Join</em> on any open game.</div>
+            <div className="mb-8"><strong>4. Place your ships</strong> — Click cells on the grid to mark ship positions (minimum 3). Hit <em>Confirm</em> to lock them in.</div>
+            <div className="mb-8"><strong>5. Fire away!</strong> — On your turn, select a target player and click a cell on their grid to fire. Hit/Miss result is shown instantly.</div>
+            <div style={{ color:"var(--fg-muted)", fontSize:11 }}>
+              💡 Render.com servers may take ~30s to wake up if idle. If you get a connection error, wait a moment and try again.
+            </div>
+          </div>
+        )}
+        {!showGuide && (
+          <div className="text-xs text-muted">Register → Join/Create a game → Place ships → Fire shots → Win!</div>
+        )}
+      </div>
+
       <div className="card">
         <div className="mb-16">
           <div style={{ fontSize:24, fontWeight:700, letterSpacing:"0.1em", marginBottom:4 }}>⊕ BATTLESHIP</div>
@@ -416,10 +475,26 @@ function RegisterPage({ onRegister }) {
             }}>{m === "login" ? "Sign In" : "Register"}</button>
           ))}
         </div>
+
+        {/* Server selector */}
         <div className="field">
-          <label>Server URL</label>
-          <input type="text" value={server} onChange={e => setServer(e.target.value)} placeholder="https://your-server.onrender.com" />
+          <label>Server</label>
+          <select value={server} onChange={e => handleServerChange(e.target.value)}
+            style={{ width:"100%", background:"var(--input-bg)", border:"0.5px solid var(--input-border)",
+              borderRadius:8, padding:"8px 12px", fontSize:13, fontFamily:"inherit", color:"var(--fg)", outline:"none" }}>
+            {KNOWN_SERVERS.map(s => (
+              <option key={s.url} value={s.url}>{s.label}</option>
+            ))}
+          </select>
+          {server === "__custom__" && (
+            <input type="text" value={customUrl} onChange={e => setCustomUrl(e.target.value)}
+              placeholder="https://your-server.onrender.com" style={{ marginTop:6 }} />
+          )}
+          <div className="text-xs text-muted mt-8">
+            Connected to: <strong>{server === "__custom__" ? (customUrl || "—") : server}</strong>
+          </div>
         </div>
+
         <div className="field">
           <label>Username</label>
           <input type="text" value={username} onChange={e => setUsername(e.target.value)}
@@ -1066,10 +1141,12 @@ class ErrorBoundary extends React.Component {
 // ── App Shell ─────────────────────────────────────────────────────────────────
 function App() {
   const [player, setPlayer]     = useLocalStorage("bs_player", null);
-  const [server, setServer]     = useLocalStorage("bs_server", window.location.origin);
+  const [server, setServer]     = useLocalStorage("bs_server", DEFAULT_SERVER);
   const [myGameIds, setMyGames] = useLocalStorage("bs_games", []);
   const [tab, setTab]           = useState("lobby");
   const [theme, setTheme]       = useLocalStorage("bs_theme", "auto"); // "auto" | "light" | "dark"
+  const [showServerPicker, setShowServerPicker] = useState(false);
+  const [customUrl, setCustomUrl] = useState("");
 
   // Apply theme attribute to <html> so CSS [data-theme] selectors kick in
   useEffect(() => {
@@ -1146,6 +1223,11 @@ function App() {
           <button key={id} className={`btn btn-sm btn-tab ${tab===`game:${id}`?"active":""}`} onClick={() => setTab(`game:${id}`)}>#{id}</button>
         ))}
         <div className="nav-spacer" />
+        {/* Server switcher */}
+        <button className="btn btn-sm" onClick={() => setShowServerPicker(v => !v)}
+          title="Switch server" style={{ fontSize:11, maxWidth:140, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+          🌐 {KNOWN_SERVERS.find(s => s.url === server)?.label?.split("—")[0]?.trim() || "Server"}
+        </button>
         {/* Theme toggle: Auto → Light → Dark → Auto */}
         <button className="btn btn-sm" onClick={cycleTheme} title={`Theme: ${themeTitle} — click to cycle`}
           style={{ fontSize:15, padding:"3px 9px", lineHeight:1 }}>
@@ -1157,6 +1239,55 @@ function App() {
           <button className="btn btn-sm" onClick={logout}>Logout</button>
         </div>
       </nav>
+
+      {/* Server Picker Modal */}
+      {showServerPicker && (
+        <div className="overlay" onClick={() => setShowServerPicker(false)}>
+          <div className="card modal" style={{ maxWidth:420 }} onClick={e => e.stopPropagation()}>
+            <div className="fw-bold mb-12" style={{ fontSize:14 }}>🌐 Switch Server</div>
+            <div className="text-xs text-muted mb-12">
+              Select any team's server. Switching will reload the lobby.
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:340, overflowY:"auto" }}>
+              {KNOWN_SERVERS.filter(s => s.url !== "__custom__").map(s => (
+                <button key={s.url} onClick={() => {
+                    setServer(s.url);
+                    setMyGames([]);
+                    setTab("lobby");
+                    setShowServerPicker(false);
+                  }}
+                  className="btn"
+                  style={{
+                    textAlign:"left", justifyContent:"flex-start",
+                    fontWeight: s.url === server ? 700 : 400,
+                    borderColor: s.url === server ? "#1D9E75" : undefined,
+                    color: s.url === server ? "#1D9E75" : undefined,
+                  }}>
+                  {s.url === server ? "✓ " : ""}{s.label}
+                </button>
+              ))}
+              <div style={{ borderTop:"0.5px solid var(--divider)", paddingTop:8, marginTop:4 }}>
+                <div className="text-xs text-muted mb-8">Custom server URL</div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input type="text" value={customUrl} onChange={e => setCustomUrl(e.target.value)}
+                    placeholder="https://…" style={{ flex:1 }} />
+                  <button className="btn btn-primary btn-sm" onClick={() => {
+                    if (!customUrl.trim()) return;
+                    setServer(customUrl.trim());
+                    setMyGames([]);
+                    setTab("lobby");
+                    setShowServerPicker(false);
+                  }}>Use</button>
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-muted mt-12" style={{ wordBreak:"break-all" }}>
+              Current: <strong>{server}</strong>
+            </div>
+            <button className="btn mt-12" onClick={() => setShowServerPicker(false)}>Close</button>
+          </div>
+        </div>
+      )}
 
       {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} />}
       {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} />}
