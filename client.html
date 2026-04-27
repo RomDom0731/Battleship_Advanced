@@ -442,13 +442,24 @@ function RegisterPage({ onRegister }) {
         </div>
         {showGuide && (
           <div className="text-sm" style={{ lineHeight:1.7 }}>
+
+            <div style={{ fontWeight:700, fontSize:12, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:6 }}>Getting Into a Game</div>
             <div className="mb-8"><strong>1. Choose a server</strong> — The default is our server (0x0C). Use the dropdown below to switch to any team's server for cross-server play.</div>
-            <div className="mb-8"><strong>2. Register an account</strong> — Pick the <em>Register</em> tab and enter a username. Usernames are letters, numbers, and underscores only.</div>
-            <div className="mb-8"><strong>3. Create or join a game</strong> — In the Lobby, hit <em>+ New Game</em> to create one (pick grid size &amp; player cap), or click <em>Join</em> on any open game.</div>
-            <div className="mb-8"><strong>4. Place your ships</strong> — Click cells on the grid to mark ship positions (minimum 3). Hit <em>Confirm</em> to lock them in.</div>
-            <div className="mb-8"><strong>5. Fire away!</strong> — On your turn, select a target player and click a cell on their grid to fire. Hit/Miss result is shown instantly.</div>
+            <div className="mb-8"><strong>2. Register an account</strong> — Pick the <em>Register</em> tab and enter a username (letters, numbers, underscores only, max 30 chars). Returning? Use <em>Sign In</em> with your existing username.</div>
+            <div className="mb-8"><strong>3. Create or join a game</strong> — In the Lobby, hit <em>+ New Game</em> to create one (choose grid size 5–15 and player cap 2–10), or click <em>Join</em> on any open game in the list.</div>
+            <div className="mb-8"><strong>4. Place your ships</strong> — Click cells on the grid to mark ship positions (minimum 3). Hit <em>Confirm</em> to lock them in. Wait for all other players to place before the game starts.</div>
+            <div className="mb-8"><strong>5. Fire away!</strong> — On your turn, select a target player using the buttons above the attack grid, then click a cell to fire. The result (Hit/Miss) appears immediately. Turn passes to the next player automatically.</div>
+            <div className="mb-12"><strong>6. Win!</strong> — Eliminate all other players by sinking all of their ships. Last player standing wins.</div>
+
+            <div style={{ fontWeight:700, fontSize:12, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:6 }}>Navigation Bar (top of page after login)</div>
+            <div className="mb-8"><strong>Lobby</strong> — Takes you back to the main lobby where you can browse open games, create a new one, or view the player leaderboard.</div>
+            <div className="mb-8"><strong>#1, #2, … (game tabs)</strong> — Each game you've joined gets its own tab in the nav bar. Click any tab to jump directly to that game. You can be in multiple games at once.</div>
+            <div className="mb-8"><strong>🌐 Server button</strong> — Switch to any other team's server without logging out. Useful for cross-server interoperability testing. Switching resets the lobby view.</div>
+            <div className="mb-8"><strong>◑ / ☀ / ☾ (theme toggle)</strong> — Cycles between Auto (follows your OS setting), Light mode, and Dark mode.</div>
+            <div className="mb-12"><strong>Your username + Logout</strong> — Displays who you're signed in as. Logout clears your session but preserves your server and theme preferences.</div>
+
             <div style={{ color:"var(--fg-muted)", fontSize:11 }}>
-              💡 Render.com servers may take ~30s to wake up if idle. If you get a connection error, wait a moment and try again.
+              💡 Render.com servers may take ~30s to wake up after inactivity. If you get a connection error, wait a moment and try again.
             </div>
           </div>
         )}
@@ -565,7 +576,7 @@ function PlayerStatsRow({ p, api, isMe }) {
 }
 
 // ── Lobby ─────────────────────────────────────────────────────────────────────
-function Lobby({ player, api, myGameIds, onOpenGame }) {
+function Lobby({ player, api, myGameIds, onOpenGame, onAutoLogout }) {
   const [games, setGames]       = useState([]);
   const [players, setPlayers]   = useState([]);
   const [err, setErr]           = useState("");
@@ -584,7 +595,13 @@ function Lobby({ player, api, myGameIds, onOpenGame }) {
       const raw = gRes.value;
       gameList = Array.isArray(raw) ? raw : (Array.isArray(raw?.games) ? raw.games : []);
     } else { setErr("Cannot reach server. Check your server URL."); }
-    if (pRes.status === "fulfilled") setPlayers(Array.isArray(pRes.value) ? pRes.value : []);
+    if (pRes.status === "fulfilled") {
+      const playerList = Array.isArray(pRes.value) ? pRes.value : [];
+      setPlayers(playerList);
+      // Auto-logout if this player no longer exists (e.g. DB was wiped / reset)
+      const stillExists = playerList.some(p => p.player_id === player.player_id);
+      if (!stillExists) { onAutoLogout?.(); return; }
+    }
     // Batch-fetch full details: getGames only returns game_id + status
     if (gameList.length > 0) {
       const details = await Promise.allSettled(gameList.map(g => api.getGame(g.game_id)));
@@ -812,7 +829,7 @@ function StatsModal({ player, api, onClose }) {
 }
 
 // ── Game Page ─────────────────────────────────────────────────────────────────
-function GamePage({ gameId, player, api, onBack }) {
+function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
   const [game, setGame]               = useState(null);
   const [moves, setMoves]             = useState([]);
   // max_players is not returned by getGame — read from localStorage where Lobby stored it
@@ -847,8 +864,12 @@ function GamePage({ gameId, player, api, onBack }) {
       }
       const others = (g.players || []).filter(p => p.player_id !== player.player_id);
       if (others.length > 0) setTarget(t => t ?? others[0].player_id);
+
+      // Auto-logout if this player no longer exists (e.g. DB was wiped)
+      const stillExists = (Array.isArray(allPlayers) ? allPlayers : []).some(p => p.player_id === player.player_id);
+      if (!stillExists) { onAutoLogout?.(); return; }
     } catch { setErr("Server unreachable."); }
-  }, [api, gameId, player.player_id, player.username]);
+  }, [api, gameId, player.player_id, player.username, onAutoLogout]);
 
   useEffect(() => { refresh(); const t = setInterval(refresh, 3000); return () => clearInterval(t); }, [refresh]);
 
@@ -1255,6 +1276,7 @@ function App() {
                     setMyGames([]);
                     setTab("lobby");
                     setShowServerPicker(false);
+                    logout();
                   }}
                   className="btn"
                   style={{
@@ -1277,6 +1299,7 @@ function App() {
                     setMyGames([]);
                     setTab("lobby");
                     setShowServerPicker(false);
+                    logout();
                   }}>Use</button>
                 </div>
               </div>
@@ -1289,8 +1312,8 @@ function App() {
         </div>
       )}
 
-      {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} />}
-      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} />}
+      {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} onAutoLogout={logout} />}
+      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onAutoLogout={logout} />}
     </div>
   );
 }
