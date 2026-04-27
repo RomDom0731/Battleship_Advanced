@@ -812,7 +812,7 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
   // max_players is not returned by getGame — read from localStorage where Lobby stored it
   const storedMax  = parseInt(localStorage.getItem(`bs_maxp_${gameId}`) ?? "0");
   const maxPlayers = storedMax > 0 ? storedMax : null;
-  const [placed, setPlaced]           = useLocalStorage(`bs_placed_${gameId}`, false);
+  const [placed, setPlaced]           = useState(false);
   const [myShipCells, setMyShipCells] = useLocalStorage(`bs_ships_${gameId}_${player.player_id}`, {});
   const [targetId, setTarget]         = useState(null);
   const [firing, setFiring]           = useState(false);
@@ -836,9 +836,10 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
       // already placed, and if the game has left waiting_setup everyone has placed.
       // This means placed is restored correctly even after a remount or page refresh.
       const me = (g.players || []).find(p => p.player_id === player.player_id);
-      if (g.status !== "waiting_setup" || (me && me.ships_remaining > 0)) {
-        setPlaced(true);
-      }
+      // Use server as sole source of truth — ships_remaining > 0 means placed,
+      // or if game has moved past waiting_setup everyone has placed.
+      // This also correctly resets to false if the game is restarted.
+      setPlaced(g.status !== "waiting_setup" || (!!me && me.ships_remaining > 0));
       const others = (g.players || []).filter(p => p.player_id !== player.player_id);
       if (others.length > 0) setTarget(t => t ?? others[0].player_id);
 
