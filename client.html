@@ -604,12 +604,8 @@ function Lobby({ player, api, myGameIds, onOpenGame, onAutoLogout }) {
       const stillExists = playerList.some(p => p.player_id === player.player_id);
       if (!stillExists) { onAutoLogout?.("Your account no longer exists on this server — the database may have been reset. Please sign in again."); return; }
     }
-    // Batch-fetch full details: getGames only returns game_id + status
-    if (gameList.length > 0) {
-      const details = await Promise.allSettled(gameList.map(g => api.getGame(g.game_id)));
-      setGames(gameList.map((g, i) => details[i].status === "fulfilled" ? { ...g, ...details[i].value } : g));
-    } else { setGames(gameList); }
-  }, [api]);
+    setGames(gameList);
+  }, [api, player.player_id, onAutoLogout]);
 
   useEffect(() => { load(); const t = setInterval(load, 6000); return () => clearInterval(t); }, [load]);
 
@@ -702,16 +698,13 @@ function Lobby({ player, api, myGameIds, onOpenGame, onAutoLogout }) {
           <div className="flex" style={{ flexDirection:"column", gap:8 }}>
             {games.length === 0 && <div className="card text-sm text-muted">No games yet. Create one to get started!</div>}
             {games.map(g => {
-              const inGame = myGameIds.includes(g.game_id);
-              const open   = g.status === "waiting_setup";
-              const joined = g.players ? g.players.length : (g.player_count ?? null);
-              // max_players is not in getGame response — read from localStorage where it was stored on create/join
+              const inGame    = myGameIds.includes(g.game_id);
+              const open      = g.status === "waiting_setup";
               const storedMax = parseInt(localStorage.getItem(`bs_maxp_${g.game_id}`) ?? "0");
-              const gMax   = g.max_players ?? (storedMax > 0 ? storedMax : null);
-              const gridSz = g.grid_size ? `${g.grid_size}×${g.grid_size}` : null;
+              const gMax      = storedMax > 0 ? storedMax : null;
               return (
                 <div key={g.game_id} className="card" style={{ padding:"12px 16px" }}>
-                  <div className="game-row" style={{ marginBottom: gridSz ? 8 : 0 }}>
+                  <div className="game-row">
                     <div className="game-info"><div className="game-title">Game #{g.game_id}</div></div>
                     <span className={`badge ${statusBadge(g.status)}`}>{statusLabel(g.status)}</span>
                     {inGame && <span className="badge badge-joined">JOINED</span>}
@@ -721,28 +714,12 @@ function Lobby({ player, api, myGameIds, onOpenGame, onAutoLogout }) {
                         ? <button className="btn btn-sm" onClick={() => handleJoin(g.game_id)} disabled={joining === g.game_id}>{joining===g.game_id ? "…" : "Join"}</button>
                         : <button className="btn btn-sm" disabled>Closed</button>}
                   </div>
-                  {/* Stats strip — only rendered once getGame detail has loaded */}
-                  {gridSz && (
-                    <div style={{ display:"flex", gap:16, flexWrap:"wrap", alignItems:"center" }}>
+                  {gMax && (
+                    <div style={{ display:"flex", gap:16, flexWrap:"wrap", alignItems:"center", marginTop:8 }}>
                       <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Grid</span>
-                        <span style={{ fontSize:12, fontWeight:700 }}>{gridSz}</span>
+                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Max Players</span>
+                        <span style={{ fontSize:12, fontWeight:700 }}>{gMax}</span>
                       </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                        <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>Players</span>
-                        <span style={{ fontSize:12, fontWeight:700 }}>{joined != null ? (gMax ? `${joined}/${gMax}` : joined) : "?"}</span>
-                      </div>
-                      {g.players && g.players.length > 0 && (
-                        <div style={{ display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
-                          <span style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)" }}>In Game</span>
-                          <span style={{ fontSize:12 }}>
-                            {g.players.map((p,i) => {
-                              const name = players.find(pl => pl.player_id === p.player_id)?.username || `#${p.player_id}`;
-                              return <span key={p.player_id}>{i>0?", ":""}{name}</span>;
-                            })}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -848,6 +825,8 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
   const [leaving, setLeaving]         = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
   const [rematchError, setRematchError]     = useState("");
+  const [rematchProposed, setRematchProposed] = useState(false);
+  const [rematchReceived, setRematchReceived] = useState(false);
   const [playerNames, setNames]       = useState({});
   const firingRef                     = useRef(false);
 
@@ -861,6 +840,9 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
       setNames(names);
       const moveList = Array.isArray(m) ? m : (Array.isArray(m?.moves) ? m.moves : []);
       setMoves(moveList);
+      // Use the server as authoritative truth: if ships_remaining > 0 the player has
+      // already placed, and if the game has left waiting_setup everyone has placed.
+      // This means placed is restored correctly even after a remount or page refresh.
       const me = (g.players || []).find(p => p.player_id === player.player_id);
       if (g.status !== "waiting_setup" || (me && me.ships_remaining > 0)) {
         setPlaced(true);
@@ -879,11 +861,26 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
   const handleRematch = async () => {
     setRematchLoading(true); setRematchError("");
     try {
-      const res = await api.rematchGame(gameId, player.player_id);
+      const res = await api.rematchGame(gameId, player.player_id, 'propose');
+      if (res.status === 'proposed') {
+        setRematchProposed(true);
+      } else {
+        onLeave(gameId);
+        onOpenGame(res.game_id);
+      }
+    } catch (e) {
+      setRematchError(e.message || "Could not propose rematch.");
+    } finally { setRematchLoading(false); }
+  };
+
+  const handleAcceptRematch = async () => {
+    setRematchLoading(true); setRematchError("");
+    try {
+      const res = await api.rematchGame(gameId, player.player_id, 'accept');
       onLeave(gameId);
       onOpenGame(res.game_id);
     } catch (e) {
-      setRematchError(e.message || "Could not create rematch.");
+      setRematchError(e.message || "Could not accept rematch.");
     } finally { setRematchLoading(false); }
   };
 
@@ -995,9 +992,23 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
           </div>
           <div className="text-xs text-muted mt-8 mb-12">Game finished — want to go again?</div>
           {rematchError && <div className="text-xs" style={{ color:"#D85A30", marginBottom:8 }}>{rematchError}</div>}
-          <button className="btn btn-primary btn-sm" onClick={handleRematch} disabled={rematchLoading}>
-            {rematchLoading ? "Creating…" : "🔄 Rematch"}
-          </button>
+          {rematchProposed ? (
+            <div className="alert alert-success" style={{ marginBottom:0 }}>
+              ✓ Rematch proposed — waiting for your opponent to accept…
+            </div>
+          ) : rematchReceived ? (
+            <div className="flex gap-8">
+              <div className="text-sm text-muted flex-1">Your opponent wants a rematch!</div>
+              <button className="btn btn-primary btn-sm" onClick={handleAcceptRematch} disabled={rematchLoading}>
+                {rematchLoading ? "Accepting…" : "Accept"}
+              </button>
+              <button className="btn btn-sm" onClick={() => setRematchReceived(false)}>Decline</button>
+            </div>
+          ) : (
+            <button className="btn btn-primary btn-sm" onClick={handleRematch} disabled={rematchLoading}>
+              {rematchLoading ? "Proposing…" : "🔄 Rematch"}
+            </button>
+          )}
         </div>
       )}
 
