@@ -831,7 +831,7 @@ function StatsModal({ player, api, onClose }) {
 }
 
 // ── Game Page ─────────────────────────────────────────────────────────────────
-function GamePage({ gameId, player, api, onBack, onLeave, onAutoLogout }) {
+function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogout }) {
   const [game, setGame]               = useState(null);
   const [moves, setMoves]             = useState([]);
   // max_players is not returned by getGame — read from localStorage where Lobby stored it
@@ -996,6 +996,14 @@ function GamePage({ gameId, player, api, onBack, onLeave, onAutoLogout }) {
                 ? "🏆 You Win!"
                 : `🏆 ${playerNames[String(game.winner_id)] || "Opponent"} Wins!`}
           </div>
+          <div className="text-xs text-muted mt-8 mb-12">Game finished — want to go again?</div>
+          {rematchError && <div className="text-xs" style={{ color:"#D85A30", marginBottom:8 }}>{rematchError}</div>}
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleRematch}
+            disabled={rematchLoading}>
+            {rematchLoading ? "Starting…" : "🔄 Rematch"}
+          </button>
         </div>
       )}
 
@@ -1363,7 +1371,7 @@ function App() {
       )}
 
       {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} onAutoLogout={(msg) => logout(msg)} />}
-      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onLeave={(id) => { setMyGames(prev => prev.filter(g => g !== id)); setTab("lobby"); }} onAutoLogout={(msg) => logout(msg)} />}
+      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onLeave={(id) => { setMyGames(prev => prev.filter(g => g !== id)); setTab("lobby"); }} onOpenGame={openGame} onAutoLogout={(msg) => logout(msg)} />}
     </div>
   );
 }
