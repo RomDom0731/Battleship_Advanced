@@ -1015,12 +1015,23 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
           </div>
           <div className="text-xs text-muted mt-8 mb-12">Game finished — want to go again?</div>
           {rematchError && <div className="text-xs" style={{ color:"#D85A30", marginBottom:8 }}>{rematchError}</div>}
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={handleRematch}
-            disabled={rematchLoading}>
-            {rematchLoading ? "Starting…" : "🔄 Rematch"}
-          </button>
+          {rematchProposed ? (
+            <div className="alert alert-success" style={{ marginBottom:0 }}>
+              ✓ Rematch proposed — waiting for your opponent to accept…
+            </div>
+          ) : rematchReceived ? (
+            <div className="flex gap-8">
+              <div className="text-sm text-muted flex-1">Your opponent wants a rematch!</div>
+              <button className="btn btn-primary btn-sm" onClick={handleAcceptRematch} disabled={rematchLoading}>
+                {rematchLoading ? "Accepting…" : "Accept"}
+              </button>
+              <button className="btn btn-sm" onClick={() => setRematchReceived(false)}>Decline</button>
+            </div>
+          ) : (
+            <button className="btn btn-primary btn-sm" onClick={handleRematch} disabled={rematchLoading}>
+              {rematchLoading ? "Proposing…" : "🔄 Rematch"}
+            </button>
+          )}
         </div>
       )}
 

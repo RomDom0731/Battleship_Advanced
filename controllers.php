@@ -899,7 +899,7 @@ function leaveGame(int $game_id): void {
 function rematchGame(int $game_id): void {
     $body      = json_decode(file_get_contents('php://input'), true) ?? [];
     $player_id = $body['player_id'] ?? null;
-    $action    = $body['action']    ?? 'propose'; // 'propose' or 'accept'
+    $action    = $body['action']    ?? 'propose';
 
     if (!$player_id) {
         http_response_code(400);
