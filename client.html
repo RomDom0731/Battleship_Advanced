@@ -454,7 +454,7 @@ function RegisterPage({ onRegister }) {
             <div style={{ fontWeight:700, fontSize:12, textTransform:"uppercase", letterSpacing:"0.08em", color:"var(--fg-muted)", marginBottom:6 }}>Navigation Bar (top of page after login)</div>
             <div className="mb-8"><strong>Lobby</strong> — Takes you back to the main lobby where you can browse open games, create a new one, or view the player leaderboard.</div>
             <div className="mb-8"><strong>#1, #2, … (game tabs)</strong> — Each game you've joined gets its own tab in the nav bar. Click any tab to jump directly to that game. You can be in multiple games at once.</div>
-            <div className="mb-8"><strong>🌐 Server button</strong> — Switch to any other team's server without logging out. Useful for cross-server interoperability testing. Switching resets the lobby view.</div>
+            <div className="mb-8"><strong>🌐 Server button</strong> — Switch to any other team's server. <strong>Switching will log you out</strong> since your account only exists on the server you registered with. You'll land back on the login screen pointed at the new server.</div>
             <div className="mb-8"><strong>◑ / ☀ / ☾ (theme toggle)</strong> — Cycles between Auto (follows your OS setting), Light mode, and Dark mode.</div>
             <div className="mb-12"><strong>Your username + Logout</strong> — Displays who you're signed in as. Logout clears your session but preserves your server and theme preferences.</div>
 
@@ -1267,7 +1267,7 @@ function App() {
           <div className="card modal" style={{ maxWidth:420 }} onClick={e => e.stopPropagation()}>
             <div className="fw-bold mb-12" style={{ fontSize:14 }}>🌐 Switch Server</div>
             <div className="text-xs text-muted mb-12">
-              Select any team's server. Switching will reload the lobby.
+              Select any team's server. <strong>Switching will log you out</strong> — your account only exists on the server you registered with.
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:340, overflowY:"auto" }}>
               {KNOWN_SERVERS.filter(s => s.url !== "__custom__").map(s => (
