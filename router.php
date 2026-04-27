@@ -126,6 +126,7 @@ if (isset($segments[0]) && $segments[0] === 'games') {
             if ($segments[2] === 'place') { placeShips($gameId); exit; }
             if ($segments[2] === 'fire')  { fireShot($gameId);   exit; }
             if ($segments[2] === 'leave') { leaveGame($gameId);  exit; }
+            if ($segments[2] === 'rematch') { rematchGame($gameId); exit; }
         }
     }
 }
