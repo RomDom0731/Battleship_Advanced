@@ -277,7 +277,7 @@ function makeApi(base) {
     fireShot:     (id, pid, row, col) => call("POST", `/games/${id}/fire`, { player_id: pid, row, col }),
     getMoves:     (id)                => call("GET",  `/games/${id}/moves`),
     leaveGame:    (id, pid)           => call("POST", `/games/${id}/leave`, { player_id: pid }),
-    rematchGame:  (id, pid)           => call("POST", `/games/${id}/rematch`, { player_id: pid }),
+    rematchGame:  (id, pid, action = 'propose') => call("POST", `/games/${id}/rematch`, { player_id: pid, action }),
   };
 }
 
@@ -848,6 +848,8 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
   const [leaving, setLeaving]         = useState(false);
   const [rematchLoading, setRematchLoading] = useState(false);
   const [rematchError, setRematchError]     = useState("");
+  const [rematchProposed, setRematchProposed] = useState(false);
+  const [rematchReceived, setRematchReceived] = useState(false);
   const [playerNames, setNames]       = useState({});
   const firingRef                     = useRef(false);
 
@@ -882,11 +884,26 @@ function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogo
   const handleRematch = async () => {
     setRematchLoading(true); setRematchError("");
     try {
-      const res = await api.rematchGame(gameId, player.player_id);
+      const res = await api.rematchGame(gameId, player.player_id, 'propose');
+      if (res.status === 'proposed') {
+        setRematchProposed(true);
+      } else {
+        onLeave(gameId);
+        onOpenGame(res.game_id);
+      }
+    } catch (e) {
+      setRematchError(e.message || "Could not propose rematch.");
+    } finally { setRematchLoading(false); }
+  };
+
+  const handleAcceptRematch = async () => {
+    setRematchLoading(true); setRematchError("");
+    try {
+      const res = await api.rematchGame(gameId, player.player_id, 'accept');
       onLeave(gameId);
       onOpenGame(res.game_id);
     } catch (e) {
-      setRematchError(e.message || "Could not start rematch.");
+      setRematchError(e.message || "Could not accept rematch.");
     } finally { setRematchLoading(false); }
   };
 
