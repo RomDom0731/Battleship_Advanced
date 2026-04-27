@@ -274,8 +274,10 @@ function makeApi(base) {
     createGame:   (b)                 => call("POST", "/games", b),
     joinGame:     (id, pid)           => call("POST", `/games/${id}/join`, { player_id: pid }),
     placeShips:   (id, pid, ships)    => call("POST", `/games/${id}/place`, { player_id: pid, ships }),
-    fireShot:     (id, pid, targetPid, row, col) => call("POST", `/games/${id}/fire`, { player_id: pid, target_player_id: targetPid, row, col }),
+    fireShot:     (id, pid, row, col) => call("POST", `/games/${id}/fire`, { player_id: pid, row, col }),
     getMoves:     (id)                => call("GET",  `/games/${id}/moves`),
+    leaveGame:    (id, pid)           => call("POST", `/games/${id}/leave`, { player_id: pid }),
+    rematchGame:  (id, pid, action = 'propose') => call("POST", `/games/${id}/rematch`, { player_id: pid, action }),
   };
 }
 
@@ -829,7 +831,7 @@ function StatsModal({ player, api, onClose }) {
 }
 
 // ── Game Page ─────────────────────────────────────────────────────────────────
-function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
+function GamePage({ gameId, player, api, onBack, onLeave, onOpenGame, onAutoLogout }) {
   const [game, setGame]               = useState(null);
   const [moves, setMoves]             = useState([]);
   // max_players is not returned by getGame — read from localStorage where Lobby stored it
@@ -842,6 +844,12 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
   const [err, setErr]                 = useState("");
   const [notice, setNotice]           = useState("");
   const [showStats, setStats]         = useState(false);
+  const [showLeave, setShowLeave]     = useState(false);
+  const [leaving, setLeaving]         = useState(false);
+  const [rematchLoading, setRematchLoading] = useState(false);
+  const [rematchError, setRematchError]     = useState("");
+  const [rematchProposed, setRematchProposed] = useState(false);
+  const [rematchReceived, setRematchReceived] = useState(false);
   const [playerNames, setNames]       = useState({});
   const firingRef                     = useRef(false);
 
@@ -873,12 +881,49 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
 
   useEffect(() => { refresh(); const t = setInterval(refresh, 3000); return () => clearInterval(t); }, [refresh]);
 
+  const handleRematch = async () => {
+    setRematchLoading(true); setRematchError("");
+    try {
+      const res = await api.rematchGame(gameId, player.player_id, 'propose');
+      if (res.status === 'proposed') {
+        setRematchProposed(true);
+      } else {
+        onLeave(gameId);
+        onOpenGame(res.game_id);
+      }
+    } catch (e) {
+      setRematchError(e.message || "Could not propose rematch.");
+    } finally { setRematchLoading(false); }
+  };
+
+  const handleAcceptRematch = async () => {
+    setRematchLoading(true); setRematchError("");
+    try {
+      const res = await api.rematchGame(gameId, player.player_id, 'accept');
+      onLeave(gameId);
+      onOpenGame(res.game_id);
+    } catch (e) {
+      setRematchError(e.message || "Could not accept rematch.");
+    } finally { setRematchLoading(false); }
+  };
+
+  const handleLeave = async () => {
+    setLeaving(true);
+    try {
+      await api.leaveGame(gameId, player.player_id);
+      onLeave(gameId);
+    } catch (e) {
+      setErr(e.message || "Could not leave game.");
+      setShowLeave(false);
+    } finally { setLeaving(false); }
+  };
+
   const handleFire = async (r, c) => {
     if (firingRef.current) return;
     if (!targetId) { setErr("Select a target player first."); return; }
     firingRef.current = true; setFiring(true); setErr(""); setNotice("");
     try {
-      const res = await api.fireShot(gameId, player.player_id, targetId, r, c);
+      const res = await api.fireShot(gameId, player.player_id, r, c);
       setNotice(`(${r}, ${c}) — ${(res.result || "fired").toUpperCase()}!`);
       await refresh();
     } catch (e) {
@@ -926,6 +971,7 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
         {myTurn && !isWaiting && !isDone && <span className="badge badge-turn pulse">YOUR TURN ▶</span>}
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={() => setStats(true)}>Stats</button>
+          {!isDone && <button className="btn btn-danger btn-sm" onClick={() => setShowLeave(true)}>Forfeit</button>}
         </div>
       </div>
 
@@ -967,6 +1013,25 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
                 ? "🏆 You Win!"
                 : `🏆 ${playerNames[String(game.winner_id)] || "Opponent"} Wins!`}
           </div>
+          <div className="text-xs text-muted mt-8 mb-12">Game finished — want to go again?</div>
+          {rematchError && <div className="text-xs" style={{ color:"#D85A30", marginBottom:8 }}>{rematchError}</div>}
+          {rematchProposed ? (
+            <div className="alert alert-success" style={{ marginBottom:0 }}>
+              ✓ Rematch proposed — waiting for your opponent to accept…
+            </div>
+          ) : rematchReceived ? (
+            <div className="flex gap-8">
+              <div className="text-sm text-muted flex-1">Your opponent wants a rematch!</div>
+              <button className="btn btn-primary btn-sm" onClick={handleAcceptRematch} disabled={rematchLoading}>
+                {rematchLoading ? "Accepting…" : "Accept"}
+              </button>
+              <button className="btn btn-sm" onClick={() => setRematchReceived(false)}>Decline</button>
+            </div>
+          ) : (
+            <button className="btn btn-primary btn-sm" onClick={handleRematch} disabled={rematchLoading}>
+              {rematchLoading ? "Proposing…" : "🔄 Rematch"}
+            </button>
+          )}
         </div>
       )}
 
@@ -1134,6 +1199,24 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
       </div>
 
       {showStats && <StatsModal player={player} api={api} onClose={() => setStats(false)} />}
+      {showLeave && (
+        <div className="overlay" onClick={() => setShowLeave(false)}>
+          <div className="card modal" onClick={e => e.stopPropagation()}>
+            <div className="fw-bold mb-12" style={{ fontSize:14 }}>Leave Game?</div>
+            <div className="text-sm text-muted mb-16">
+              {game.status === "waiting_setup"
+                ? "You will be removed from this game and it will continue without you."
+                : "Leaving an active game counts as a forfeit. Your opponent will be declared the winner."}
+            </div>
+            <div className="flex gap-8">
+              <button className="btn flex-1" onClick={() => setShowLeave(false)}>Cancel</button>
+              <button className="btn btn-danger flex-1" onClick={handleLeave} disabled={leaving}>
+                {leaving ? "Forfeiting…" : "Forfeit Game"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1260,7 +1343,7 @@ function App() {
         <div className="user-chip">
           <div className="avatar">{initials(player.username)}</div>
           <span>{player.username}</span>
-          <button className="btn btn-sm" onClick={() => logout()}>Logout</button>
+          <button className="btn btn-sm" onClick={logout}>Logout</button>
         </div>
       </nav>
 
@@ -1316,7 +1399,7 @@ function App() {
       )}
 
       {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} onAutoLogout={(msg) => logout(msg)} />}
-      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onAutoLogout={(msg) => logout(msg)} />}
+      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onLeave={(id) => { setMyGames(prev => prev.filter(g => g !== id)); setTab("lobby"); }} onOpenGame={openGame} onAutoLogout={(msg) => logout(msg)} />}
     </div>
   );
 }
