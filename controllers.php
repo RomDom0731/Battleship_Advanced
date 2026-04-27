@@ -895,6 +895,79 @@ function leaveGame(int $game_id): void {
     }
 }
 
+// POST /api/games/{id}/rematch
+function rematchGame(int $game_id): void {
+    $body      = json_decode(file_get_contents('php://input'), true) ?? [];
+    $player_id = $body['player_id'] ?? null;
+
+    if (!$player_id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'bad_request', 'message' => 'player_id is required']);
+        return;
+    }
+
+    try {
+        $db = getDB();
+
+        $stmt = $db->prepare('SELECT * FROM games WHERE game_id = :gid');
+        $stmt->execute([':gid' => $game_id]);
+        $game = $stmt->fetch();
+
+        if (!$game) {
+            http_response_code(404);
+            echo json_encode(['error' => 'not_found', 'message' => 'Game not found']);
+            return;
+        }
+
+        if ($game['status'] !== 'finished') {
+            http_response_code(400);
+            echo json_encode(['error' => 'bad_request', 'message' => 'Can only rematch a finished game']);
+            return;
+        }
+
+        // Get original players
+        $stmt = $db->prepare('SELECT player_id FROM game_players WHERE game_id = :gid ORDER BY turn_order ASC');
+        $stmt->execute([':gid' => $game_id]);
+        $players = $stmt->fetchAll();
+
+        if (empty($players)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'bad_request', 'message' => 'No players found in original game']);
+            return;
+        }
+
+        $db->beginTransaction();
+
+        // Create new game with same settings
+        $stmt = $db->prepare(
+            "INSERT INTO games (grid_size, max_players, status)
+             VALUES (:gridSize, :maxPlayers, 'waiting_setup')
+             RETURNING game_id"
+        );
+        $stmt->execute([':gridSize' => $game['grid_size'], ':maxPlayers' => $game['max_players']]);
+        $newGameId = (int)$stmt->fetchColumn();
+
+        // Re-join all original players
+        foreach ($players as $i => $p) {
+            $db->prepare('INSERT INTO game_players (game_id, player_id, turn_order) VALUES (:gid, :pid, :order)')
+               ->execute([':gid' => $newGameId, ':pid' => $p['player_id'], ':order' => $i]);
+        }
+
+        $db->commit();
+
+        http_response_code(201);
+        echo json_encode([
+            'game_id' => $newGameId,
+            'status'  => 'waiting_setup',
+        ]);
+
+    } catch (PDOException $e) {
+        if (isset($db) && $db->inTransaction()) $db->rollBack();
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error', 'message' => 'Internal Server Error']);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Test / Autograder Endpoints
 // Password gate is enforced in router.php before these are called.
