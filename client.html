@@ -276,6 +276,7 @@ function makeApi(base) {
     placeShips:   (id, pid, ships)    => call("POST", `/games/${id}/place`, { player_id: pid, ships }),
     fireShot:     (id, pid, row, col) => call("POST", `/games/${id}/fire`, { player_id: pid, row, col }),
     getMoves:     (id)                => call("GET",  `/games/${id}/moves`),
+    leaveGame:    (id, pid)           => call("POST", `/games/${id}/leave`, { player_id: pid }),
   };
 }
 
@@ -842,6 +843,8 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
   const [err, setErr]                 = useState("");
   const [notice, setNotice]           = useState("");
   const [showStats, setStats]         = useState(false);
+  const [showLeave, setShowLeave]     = useState(false);
+  const [leaving, setLeaving]         = useState(false);
   const [playerNames, setNames]       = useState({});
   const firingRef                     = useRef(false);
 
