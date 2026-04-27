@@ -384,12 +384,12 @@ const KNOWN_SERVERS = [
 const DEFAULT_SERVER = "https://battleship-advanced.onrender.com";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-function RegisterPage({ onRegister }) {
+function RegisterPage({ onRegister, loginError = "" }) {
   const [server, setServer]       = useLocalStorage("bs_server", DEFAULT_SERVER);
   const [customUrl, setCustomUrl] = useState("");
   const [username, setUsername]   = useState("");
   const [busy, setBusy]           = useState(false);
-  const [err, setErr]             = useState("");
+  const [err, setErr]             = useState(loginError);
   const [mode, setMode]           = useState("login");
   const [showGuide, setShowGuide] = useState(false);
 
@@ -600,7 +600,7 @@ function Lobby({ player, api, myGameIds, onOpenGame, onAutoLogout }) {
       setPlayers(playerList);
       // Auto-logout if this player no longer exists (e.g. DB was wiped / reset)
       const stillExists = playerList.some(p => p.player_id === player.player_id);
-      if (!stillExists) { onAutoLogout?.(); return; }
+      if (!stillExists) { onAutoLogout?.("Your account no longer exists on this server — the database may have been reset. Please sign in again."); return; }
     }
     // Batch-fetch full details: getGames only returns game_id + status
     if (gameList.length > 0) {
@@ -867,7 +867,7 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
 
       // Auto-logout if this player no longer exists (e.g. DB was wiped)
       const stillExists = (Array.isArray(allPlayers) ? allPlayers : []).some(p => p.player_id === player.player_id);
-      if (!stillExists) { onAutoLogout?.(); return; }
+      if (!stillExists) { onAutoLogout?.("Your account no longer exists on this server — the database may have been reset. Please sign in again."); return; }
     } catch { setErr("Server unreachable."); }
   }, [api, gameId, player.player_id, player.username, onAutoLogout]);
 
@@ -1168,6 +1168,7 @@ function App() {
   const [theme, setTheme]       = useLocalStorage("bs_theme", "auto"); // "auto" | "light" | "dark"
   const [showServerPicker, setShowServerPicker] = useState(false);
   const [customUrl, setCustomUrl] = useState("");
+  const [loginError, setLoginError] = useState("");
 
   // Apply theme attribute to <html> so CSS [data-theme] selectors kick in
   useEffect(() => {
@@ -1187,7 +1188,19 @@ function App() {
     setTab(`game:${id}`);
   };
 
+  const logout = (message = "") => {
+    // Only clear the player identity — keep game data, ship positions, theme, server URL
+    // so they're restored correctly when the player logs back in
+    localStorage.removeItem("bs_player");
+    localStorage.removeItem("bs_games");
+    setPlayer(null);
+    setMyGames([]);
+    setTab("lobby");
+    setLoginError(message);
+  };
+
   const handleRegister = async (p, srv) => {
+    setLoginError(""); // clear any previous error on successful login
     setPlayer(p);
     setServer(srv);
     // After login, fetch all games and restore any this player is already in
@@ -1221,17 +1234,7 @@ function App() {
     } catch { /* silently ignore — lobby will load fresh anyway */ }
   };
 
-  const logout = () => {
-    // Only clear the player identity — keep game data, ship positions, theme, server URL
-    // so they're restored correctly when the player logs back in
-    localStorage.removeItem("bs_player");
-    localStorage.removeItem("bs_games");
-    setPlayer(null);
-    setMyGames([]);
-    setTab("lobby");
-  };
-
-  if (!player) return <RegisterPage onRegister={handleRegister} />;
+  if (!player) return <RegisterPage onRegister={handleRegister} loginError={loginError} />;
 
   const activeGameId = tab.startsWith("game:") ? parseInt(tab.split(":")[1]) : null;
 
@@ -1312,8 +1315,8 @@ function App() {
         </div>
       )}
 
-      {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} onAutoLogout={logout} />}
-      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onAutoLogout={logout} />}
+      {tab === "lobby" && <Lobby player={player} api={api} myGameIds={myGameIds} onOpenGame={openGame} onAutoLogout={(msg) => logout(msg)} />}
+      {activeGameId && <GamePage key={activeGameId} gameId={activeGameId} player={player} api={api} onBack={() => setTab("lobby")} onAutoLogout={(msg) => logout(msg)} />}
     </div>
   );
 }
