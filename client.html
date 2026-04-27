@@ -876,6 +876,17 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
 
   useEffect(() => { refresh(); const t = setInterval(refresh, 3000); return () => clearInterval(t); }, [refresh]);
 
+  const handleLeave = async () => {
+    setLeaving(true);
+    try {
+      await api.leaveGame(gameId, player.player_id);
+      onLeave(gameId);
+    } catch (e) {
+      setErr(e.message || "Could not leave game.");
+      setShowLeave(false);
+    } finally { setLeaving(false); }
+  };
+
   const handleFire = async (r, c) => {
     if (firingRef.current) return;
     if (!targetId) { setErr("Select a target player first."); return; }
@@ -929,6 +940,7 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
         {myTurn && !isWaiting && !isDone && <span className="badge badge-turn pulse">YOUR TURN ▶</span>}
         <div className="ml-auto flex gap-8">
           <button className="btn btn-sm" onClick={() => setStats(true)}>Stats</button>
+          {!isDone && <button className="btn btn-danger btn-sm" onClick={() => setShowLeave(true)}>Leave</button>}
         </div>
       </div>
 
@@ -1137,6 +1149,24 @@ function GamePage({ gameId, player, api, onBack, onAutoLogout }) {
       </div>
 
       {showStats && <StatsModal player={player} api={api} onClose={() => setStats(false)} />}
+      {showLeave && (
+        <div className="overlay" onClick={() => setShowLeave(false)}>
+          <div className="card modal" onClick={e => e.stopPropagation()}>
+            <div className="fw-bold mb-12" style={{ fontSize:14 }}>Leave Game?</div>
+            <div className="text-sm text-muted mb-16">
+              {game.status === "waiting_setup"
+                ? "You will be removed from this game and it will continue without you."
+                : "Leaving an active game counts as a forfeit. Your opponent will be declared the winner."}
+            </div>
+            <div className="flex gap-8">
+              <button className="btn flex-1" onClick={() => setShowLeave(false)}>Cancel</button>
+              <button className="btn btn-danger flex-1" onClick={handleLeave} disabled={leaving}>
+                {leaving ? "Leaving…" : "Leave Game"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
